@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2020 Alibaba Group Holding Limited
+  -->
+
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/round_rect_pressed" android:state_pressed="true"/>
+    <item android:drawable="@drawable/round_rect_unpressed" android:state_pressed="false"/>
+    <item android:drawable="@drawable/round_rect_unpressed" />
+</selector>

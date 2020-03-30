@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2020 Alibaba Group Holding Limited
+  -->
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+
+    <TextView android:id="@+id/item_progress" android:layout_height="wrap_content"
+        android:layout_width="wrap_content" android:layout_alignParentRight="true"  />
+
+    <TextView android:id="@+id/item_file" android:layout_height="wrap_content"
+        android:layout_width="fill_parent" android:textSize="12sp"/>
+
+    <TextView android:id="@+id/item_status" android:layout_height="wrap_content"
+        android:layout_width="wrap_content" android:layout_alignParentRight="true"
+        android:layout_below="@+id/item_progress" android:textSize="8sp"/>
+
+    <TextView android:id="@+id/item_oss" android:layout_height="wrap_content"
+        android:layout_width="fill_parent" android:layout_below="@+id/item_file"
+        android:textSize="8sp"/>
+
+</RelativeLayout>

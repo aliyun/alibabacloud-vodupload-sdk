@@ -1,0 +1,2 @@
+include ':app'
+include ':vod-upload-android-sdk'
