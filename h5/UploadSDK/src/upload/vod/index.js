@@ -8,7 +8,6 @@ import Log from '../../service/log';
 import util from '../../service/util';
 import guid from '../../service/guid';
 import data from './data';
-import serverPoint from './serverpoint';
 import fileService from '../../service/fileService';
 var MD5 = require('crypto-js/md5');
 
@@ -870,33 +869,6 @@ export default class VODUpload
                 fn:uploadInfo.file.name
             });
         }
-        if(!this._invalidUserId && !uploadInfo.isImage && this._ut == 'vod' && this.options.enableUploadProgress)
-        {
-            var params = {
-                file : uploadInfo.file,
-                checkpoint:info,
-                userId:this.options.userId,
-                videoId:uploadInfo.videoId,
-                region: this.options.region,
-                fileHash:uploadInfo.fileHash
-            }
-            try
-            {
-                var that = this;
-                serverPoint.upload(params,function(){},function(error){
-                    error = JSON.parse(error);
-                    if (error && error.Code == 'InvalidParameter' && error.Message.indexOf('UserId') > 0) {
-                         that._invalidUserId = true;
-                        var msg = error.Message +'，正确账号ID(userId)请参考：https://help.aliyun.com/knowledge_detail/37196.html';
-                        console.log(msg);
-                    }
-
-                });
-            }catch(e)
-            {
-                console.log(e);
-            }
-        }
     }
 
     _getPortNumber(cp)
@@ -973,23 +945,6 @@ export default class VODUpload
     {
         var key = `upload_${info.file.lastModified}_${info.file.name}_${info.file.size}`;
         return key;
-    }
-
-    _getCheckoutpointFromCloud(info, callback,failed)
-    {
-        let params = {
-            userId:this.options.userId,
-            uploadInfoList:[{
-                FileName:info.file.name,
-                FileSize:info.file.size,
-                FileCreateTime:info.file.lastModified,
-                FileHash:info.fileHash
-            }],
-            region:this.options.region
-        };
-        serverPoint.get(params,function(data){
-            callback(data);
-        },failed);
     }
 
     _reportLog(e, info, params)
