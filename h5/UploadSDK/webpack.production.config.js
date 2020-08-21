@@ -5,7 +5,7 @@ const uglifyJsPlugin = webpack.optimize.UglifyJsPlugin;
 const Merge = require('webpack-merge');
 
 const baseWebpackConfig = require('./webpack.base.config.js');
-let version = "1.5.1";
+let version = "1.5.2";
 
 module.exports = Merge.smart(baseWebpackConfig, {
   output: {
