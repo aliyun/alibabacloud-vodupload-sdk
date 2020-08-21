@@ -44,7 +44,7 @@ export default class OssUpload {
         {
             optionValues.timeout = option.timeout;
         }
-        this.oss = new OSS.Wrapper(optionValues);
+        this.oss = new OSS(optionValues);
     }
 
     abort(uploadInfo)
@@ -74,10 +74,7 @@ export default class OssUpload {
         this._uploadInfo = uploadInfo;
         let that = this;
         let progress = function (percentage, checkpoint,res) {
-          return function (done) {
-            that._progress(percentage, checkpoint,res);
-            done();
-          };
+            progress = that._progress(percentage, checkpoint,res)
         }
         let option = {
           parallel: options.parallel || this._config.parallel || UPLOADDEFAULT.PARALLEL,
