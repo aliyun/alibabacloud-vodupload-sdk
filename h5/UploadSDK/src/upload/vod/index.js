@@ -8,7 +8,7 @@ import Log from '../../service/log';
 import util from '../../service/util';
 import guid from '../../service/guid';
 import data from './data';
-import fileService from '../../service/fileService';
+
 var MD5 = require('crypto-js/md5');
 
 export default class VODUpload
@@ -91,44 +91,7 @@ export default class VODUpload
         uploadObject._object = object;
         uploadObject.state = UPLOADSTATE.INIT;
         uploadObject.isImage = util.isImage(file.name);
-        if(!uploadObject.isImage && this.options.enableUploadProgress)
-        {
-            var that = this;
-            fileService.getMd5(file,function(data){
-                uploadObject.fileHash =  data;
-                var cp = that._getCheckoutpoint(uploadObject);
-                if(!that.options.localCheckpoint && !cp)
-                {
-                    that._getCheckoutpointFromCloud(uploadObject,function(data){
-                        if(data.UploadPoint)
-                        {
-                            var checkpoint = JSON.parse(data.UploadPoint);
-                            if(checkpoint.loaded!=1)
-                            {
-                                uploadObject.checkpoint = checkpoint.checkpoint;
-                                uploadObject.loaded = checkpoint.loaded;
-                                uploadObject.videoId = data.VideoId;
-                                that._saveCheckoutpoint(uploadObject,checkpoint.checkpoint);
-                            }
-                        }
-                    },function(error){
-                        try
-                        {
-                            error = JSON.parse(error);
-                            if (error && error.Code == 'InvalidParameter' && error.Message.indexOf('UserId') > 0) {
-                                that._invalidUserId = true;
-                                var msg = error.Message +'，正确账号ID(userId)请参考：https://help.aliyun.com/knowledge_detail/37196.html';
-                                console.log(msg);
-                            }
-                        }catch(e)
-                        {
-                            console.log(e);
-                        }
-                    });
-                }
-                
-            });
-        }
+    
         if(userData)
         {
             uploadObject.videoInfo = userData ?  JSON.parse(userData).Vod: {};
