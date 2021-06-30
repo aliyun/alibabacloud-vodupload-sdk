@@ -91,7 +91,7 @@ export default class VODUpload
         uploadObject._object = object;
         uploadObject.state = UPLOADSTATE.INIT;
         uploadObject.isImage = util.isImage(file.name);
-    
+
         if(userData)
         {
             uploadObject.videoInfo = userData ?  JSON.parse(userData).Vod: {};
@@ -437,6 +437,13 @@ export default class VODUpload
         {
             params.userData = videoInfo.UserData;
         }
+        if(videoInfo.WorkflowId)
+        {
+            params.WorkflowId = videoInfo.WorkflowId;
+        }
+        if(videoInfo.AppId){
+			params.AppId = videoInfo.AppId;
+		}
         let that = this,
         func = "getUploadAuth";
         if(uploadInfo.videoId)
@@ -831,8 +838,8 @@ export default class VODUpload
                 ok:uploadInfo.object,
                 fn:uploadInfo.file.name
             });
+        }     
         }
-    }
 
     _getPortNumber(cp)
     {

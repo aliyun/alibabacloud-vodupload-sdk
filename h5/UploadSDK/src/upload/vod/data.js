@@ -104,7 +104,13 @@ export default class Data
 		{
 			newAry.UserData = JSON.stringify(params.userData);
 		}
-
+		if(params.WorkflowId)
+		{
+			newAry.WorkflowId = params.WorkflowId;
+		}
+		if(params.AppId){
+			newAry.AppId = params.AppId;
+		}
 		
 		var pbugramsdic = signature.makeUTF8sort(newAry, '=', '&') + '&Signature=' + signature.aliyunEncodeURI(signature.makeChangeSiga(newAry, params.accessKeySecret));
 
