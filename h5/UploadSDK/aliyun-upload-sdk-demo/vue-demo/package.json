@@ -34,7 +34,7 @@
     "vue-loader": "^15.4.2",
     "vue-template-compiler": "^2.5.17",
     "webpack": "^4.20.2",
-    "webpack-cli": "^3.1.2",
+    "webpack-cli": "^3.3.12",
     "webpack-dev-middleware": "^3.4.0",
     "webpack-dev-server": "^3.1.11",
     "webpack-hot-middleware": "^2.24.2"
