@@ -1,9 +1,8 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2010-2017 Alibaba Group Holding Limited.
  */
 
 package com.aliyun.vod.jasonparse;
-
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
@@ -20,14 +19,13 @@ import java.io.OutputStreamWriter;
 import java.lang.reflect.Type;
 
 /**
- *
  */
 public class JSONSupportImpl extends JSONSupport {
 
     private final Gson mGson = new Gson();
 
     @Override
-    public <T> T readListValue(String content, Type klass) throws Exception {
+    public <T> T readListValue(String content, Type klass)  throws Exception {
         return mGson.fromJson(content, klass);
     }
 
@@ -68,7 +66,7 @@ public class JSONSupportImpl extends JSONSupport {
         return mGson.toJson(instance);
     }
 
-    private byte[] getByteFromInputStream(InputStream inputStream) {
+    private byte[] getByteFromInputStream(InputStream inputStream){
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
         int nRead;

@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.exception;
 
 /**
@@ -57,7 +56,7 @@ public class VODErrorCode {
     /**
      * SecurityTokenExpired
      */
-    public static final String SECURITY_TOKEN_EXPIRED = "SecurityTokenExpired";
+    public static final String SECURITY_TOKEN_EXPIRED="SecurityTokenExpired";
 
     /**
      * Permission Denied

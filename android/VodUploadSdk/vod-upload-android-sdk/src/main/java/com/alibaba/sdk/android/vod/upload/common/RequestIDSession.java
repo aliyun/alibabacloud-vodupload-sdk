@@ -1,14 +1,12 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.common;
 
-import com.aliyun.vod.common.utils.UUIDGenerator;
+import com.aliyun.vod.log.util.UUIDGenerator;
 
-/**
- * Created by Mulberry on 2018/1/13.
- */
+import java.util.UUID;
+
 
 public class RequestIDSession {
 
@@ -29,9 +27,13 @@ public class RequestIDSession {
 
     public String getRequestID() {
         if (requestID == null) {
-            requestID = UUIDGenerator.generateUUID();
+            requestID = UUIDGenerator.generateRequestID();
         }
         return requestID;
+    }
+
+    public String getUniqueRequestID() {
+        return UUID.randomUUID().toString();
     }
 
     public void setRequestID(String requestID) {
@@ -45,7 +47,7 @@ public class RequestIDSession {
 
     public void updateRequestID() {
         if (this.canModify) {
-            this.requestID = UUIDGenerator.generateUUID();
+            this.requestID = UUIDGenerator.generateRequestID();
         }
     }
 }

@@ -1,26 +1,25 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.model;
 
 import android.util.Base64;
+
+import com.aliyun.auth.common.AliyunVodHttpCommon;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.List;
 
-/**
- * Created by Leigang on 16/10/19.
- */
+
 public class VodInfo {
     /**
      * 标题
      */
     private String title;
     /**
-     * 描述
+     *描述
      */
     private String desc;
     /**
@@ -60,6 +59,11 @@ public class VodInfo {
      * 文件大小
      */
     private String fileSize;
+
+    /**
+     * 上传图片时，用来控制上传类型是封面还是默认图片，只有默认图片才会显示在控制台 参考 {@link AliyunVodHttpCommon.ImageType}
+     */
+    private String imageType;
 
     public Boolean getIsProcess() {
         return isProcess;
@@ -116,7 +120,6 @@ public class VodInfo {
     public void setFileSize(String fileSize) {
         this.fileSize = fileSize;
     }
-
     // {"Vod":{"Title":"zoe2","Description":"zoe2","CateId":"19","Tags":"tag1,tag2","IsProcess":"true","UserData":"user defined info here"}}
     public String toVodJsonStringWithBase64() {
         JSONObject object = new JSONObject();
@@ -130,7 +133,7 @@ public class VodInfo {
             String tags = "";
             if (getTags() != null && getTags().size() > 0) {
                 tags = getTags().toString();
-                tags = tags.substring(1, tags.length() - 1);
+                tags = tags.substring(1, tags.length()-1);
             }
             obj.put("Tags", tags);
             if (null != isShowWaterMark || null != priority) {
@@ -183,5 +186,17 @@ public class VodInfo {
 
     public void setPriority(Integer priority) {
         this.priority = priority;
+    }
+
+    public String getImageType() {
+        return imageType;
+    }
+
+    /**
+     * 上传图片时，用来控制上传类型是封面还是默认图片，只有默认图片才会显示在控制台 参考 {@link AliyunVodHttpCommon.ImageType}
+     * @param imageType 参考 {@link AliyunVodHttpCommon.ImageType}
+     */
+    public void setImageType(String imageType) {
+        this.imageType = imageType;
     }
 }

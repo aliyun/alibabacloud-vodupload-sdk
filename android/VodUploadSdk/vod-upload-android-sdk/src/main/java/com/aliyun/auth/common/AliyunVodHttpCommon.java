@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.aliyun.auth.common;
 
 import android.text.TextUtils;
@@ -11,9 +10,7 @@ import java.util.Date;
 import java.util.SimpleTimeZone;
 import java.util.UUID;
 
-/**
- * Created by Mulberry on 2017/11/2.
- */
+
 
 public class AliyunVodHttpCommon {
 
@@ -23,30 +20,30 @@ public class AliyunVodHttpCommon {
     private static final String VOD_DOMAIN_SUFFIX = ".aliyuncs.com/";
 
     public static final String VOD_DOMAIN = "https://vod.cn-shanghai.aliyuncs.com/";
-    public static final String HTTP_METHOD = "GET";
+    public static final String  HTTP_METHOD = "GET";
 
     public static final String generateVodDomain(String region) {
         return VOD_DOMAIN_PREFIX + (TextUtils.isEmpty(region) ? VOD_DOMAIN_REGION : region) + VOD_DOMAIN_SUFFIX;
     }
 
-    public static class Action {
+    public static class Action{
         public static final String CREATE_UPLOAD_IMAGE = "CreateUploadImage";
         public static final String CREATE_UPLOAD_VIDEO = "CreateUploadVideo";
         public static final String REFRESH_UPLOAD_VIDEO = "RefreshUploadVideo";
     }
 
-    public static class ImageType {
+    public  static class ImageType{
         public static final String IMAGETYPE_COVER = "cover";
-        public static final String IMAGETYPE_WATERMARK = "watermark";
+        public static final String IMAGETYPE_DEFAULT = "default";
     }
 
-    public static class ImageExt {
+    public static class ImageExt{
         public static final String IMAGEEXT_PNG = "png";
         public static final String IMAGEEXT_JPG = "jpg";
         public static final String IMAGEEXT_JPEG = "jpeg";
     }
 
-    public static class Format {
+    public static class Format{
         public static final String FORMAT_JSON = "json";
         public static final String FORMAT_XML = "xml";
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2010-2017 Alibaba Group Holding Limited.
  */
 
 package com.aliyun.vod.qupaiokhttp;
@@ -8,13 +8,16 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 
+//import com.alibaba.fastjson.JSON;
+//import com.alibaba.fastjson.JSONArray;
+//import com.alibaba.fastjson.JSONObject;
+
 import com.aliyun.vod.common.utils.StringUtils;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
-import java.lang.ref.WeakReference;
+import java.lang.ref.SoftReference;
 import java.net.SocketTimeoutException;
-
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Headers;
@@ -22,10 +25,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-
-//import com.alibaba.fastjson.JSON;
-//import com.alibaba.fastjson.JSONArray;
-//import com.alibaba.fastjson.JSONObject;
 
 class OkHttpTask {
 
@@ -79,7 +78,7 @@ class OkHttpTask {
         }
     }
 
-    protected void run() throws Exception {
+    protected void run() throws Exception{
         String srcUrl = url;
         //构建请求Request实例
         Request.Builder builder = new Request.Builder();
@@ -133,16 +132,15 @@ class OkHttpTask {
 
     static class MyOkHttpCallBack implements Callback, ProgressCallback {
 
-        private WeakReference<OkHttpTask> ref;
-
-        public MyOkHttpCallBack(OkHttpTask task) {
-            ref = new WeakReference<>(task);
+        private SoftReference<OkHttpTask> ref;
+        public MyOkHttpCallBack(OkHttpTask task){
+            ref = new SoftReference<>(task);
         }
 
         @Override
         public void updateProgress(int progress, long networkSpeed, boolean done) {
             OkHttpTask task = ref.get();
-            if (task != null) {
+            if(task != null){
                 task.updateProgress(progress, networkSpeed, done);
             }
         }
@@ -150,7 +148,7 @@ class OkHttpTask {
         @Override
         public void onFailure(Call call, IOException e) {
             OkHttpTask task = ref.get();
-            if (task != null) {
+            if(task != null){
                 task.onFailure(call, e);
             }
         }
@@ -158,12 +156,11 @@ class OkHttpTask {
         @Override
         public void onResponse(Call call, Response response) throws IOException {
             OkHttpTask task = ref.get();
-            if (task != null) {
+            if(task != null){
                 task.onResponse(call, response);
             }
         }
     }
-
     /**
      * 处理进度
      *
@@ -217,7 +214,7 @@ class OkHttpTask {
         } else {
             responseData.setResponseNull(true);
             responseData.setCode(BaseHttpRequestCallback.ERROR_RESPONSE_UNKNOWN);
-            if (responseData.isTimeout()) {
+            if(responseData.isTimeout()) {
                 responseData.setMessage("request timeout");
             } else {
                 responseData.setMessage("http exception");
@@ -303,7 +300,7 @@ class OkHttpTask {
         String result = responseData.getResponse();
 
         if (StringUtils.isEmpty(result)) {
-            ILogger.e("response empty!!!");
+//            ILogger.e("response empty!!!");
         }
 
         if (callback.type == String.class || callback.type == Object.class) {

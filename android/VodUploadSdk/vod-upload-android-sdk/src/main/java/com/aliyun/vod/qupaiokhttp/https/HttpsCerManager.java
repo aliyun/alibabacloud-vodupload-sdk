@@ -1,5 +1,17 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2015 pengjianbo(pengjianbosoft@gmail.com), Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 package com.aliyun.vod.qupaiokhttp.https;
@@ -16,14 +28,12 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.List;
-
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
-
 import okhttp3.OkHttpClient;
 
 public class HttpsCerManager {
@@ -43,9 +53,7 @@ public class HttpsCerManager {
     }
 
     private TrustManager[] prepareTrustManager(InputStream... certificates) {
-        if (certificates == null || certificates.length <= 0) {
-            return null;
-        }
+        if (certificates == null || certificates.length <= 0) { return null; }
         try {
 
             CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
@@ -56,10 +64,10 @@ public class HttpsCerManager {
                 String certificateAlias = Integer.toString(index++);
                 keyStore.setCertificateEntry(certificateAlias, certificateFactory.generateCertificate(certificate));
                 try {
-                    if (certificate != null) {
-                        certificate.close();
-                    }
-                } catch (IOException e) {
+                    if (certificate != null) { certificate.close(); }
+                } catch (IOException e)
+
+                {
                 }
             }
             TrustManagerFactory trustManagerFactory = null;
@@ -85,9 +93,7 @@ public class HttpsCerManager {
 
     private KeyManager[] prepareKeyManager(InputStream bksFile, String password) {
         try {
-            if (bksFile == null || password == null) {
-                return null;
-            }
+            if (bksFile == null || password == null) { return null; }
 
             KeyStore clientKeyStore = KeyStore.getInstance("BKS");
             clientKeyStore.load(bksFile, password.toCharArray());
@@ -116,7 +122,7 @@ public class HttpsCerManager {
             KeyManager[] keyManagers = prepareKeyManager(bksFile, password);
             SSLContext sslContext = SSLContext.getInstance("TLS");
 
-            sslContext.init(keyManagers, new TrustManager[]{new OkHttpTrustManager(chooseTrustManager(trustManagers))}, new SecureRandom());
+            sslContext.init(keyManagers, new TrustManager[] { new OkHttpTrustManager(chooseTrustManager(trustManagers)) }, new SecureRandom());
             okHttpBuilder.sslSocketFactory(sslContext.getSocketFactory());
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();

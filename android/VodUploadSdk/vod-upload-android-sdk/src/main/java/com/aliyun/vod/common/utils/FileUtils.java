@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2010-2017 Alibaba Group Holding Limited.
  */
 
 package com.aliyun.vod.common.utils;/*
@@ -21,6 +21,7 @@ package com.aliyun.vod.common.utils;/*
 
 
 import android.content.Context;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
@@ -712,7 +713,7 @@ public class FileUtils {
             if (url != null) {
                 if (url.getProtocol().equals("file") == false) {
                     throw new IllegalArgumentException(
-                            "URL could not be converted to a File: " + url);
+                        "URL could not be converted to a File: " + url);
                 }
                 files[i] = toFile(url);
             }
@@ -937,7 +938,7 @@ public class FileUtils {
 
         if (srcFile.length() != destFile.length()) {
             throw new IOException("Failed to copy full contents from '" +
-                    srcFile + "' to '" + destFile + "'");
+                srcFile + "' to '" + destFile + "'");
         }
         if (preserveFileDate) {
             destFile.setLastModified(srcFile.lastModified());
@@ -1841,7 +1842,7 @@ public class FileUtils {
      * @since 1.1
      */
     public static void writeLines(File file, String encoding, Collection<?> lines, String lineEnding)
-            throws IOException {
+        throws IOException {
         writeLines(file, encoding, lines, lineEnding, false);
     }
 
@@ -1861,7 +1862,7 @@ public class FileUtils {
      * @since 2.1
      */
     public static void writeLines(File file, String encoding, Collection<?> lines, String lineEnding, boolean append)
-            throws IOException {
+        throws IOException {
         FileOutputStream out = null;
         try {
             out = openOutputStream(file, append);
@@ -1903,7 +1904,7 @@ public class FileUtils {
      * @since 2.1
      */
     public static void writeLines(File file, Collection<?> lines, String lineEnding, boolean append)
-            throws IOException {
+        throws IOException {
         writeLines(file, null, lines, lineEnding, append);
     }
 
@@ -1934,7 +1935,7 @@ public class FileUtils {
                     throw new FileNotFoundException("File does not exist: " + file);
                 }
                 String message =
-                        "Unable to delete file: " + file;
+                    "Unable to delete file: " + file;
                 throw new IOException(message);
             }
         }
@@ -2026,10 +2027,10 @@ public class FileUtils {
         if (directory.exists()) {
             if (!directory.isDirectory()) {
                 String message =
-                        "File "
-                                + directory
-                                + " exists and is "
-                                + "not a directory. Unable to create directory.";
+                    "File "
+                        + directory
+                        + " exists and is "
+                        + "not a directory. Unable to create directory.";
                 throw new IOException(message);
             }
         } else {
@@ -2038,7 +2039,7 @@ public class FileUtils {
                 // the directory in the background
                 if (!directory.isDirectory()) {
                     String message =
-                            "Unable to create directory " + directory;
+                        "Unable to create directory " + directory;
                     throw new IOException(message);
                 }
             }
@@ -2215,7 +2216,7 @@ public class FileUtils {
         }
         if (!reference.exists()) {
             throw new IllegalArgumentException("The reference file '"
-                    + reference + "' doesn't exist");
+                + reference + "' doesn't exist");
         }
         return isFileNewer(file, reference.lastModified());
     }
@@ -2283,7 +2284,7 @@ public class FileUtils {
         }
         if (!reference.exists()) {
             throw new IllegalArgumentException("The reference file '"
-                    + reference + "' doesn't exist");
+                + reference + "' doesn't exist");
         }
         return isFileOlder(file, reference.lastModified());
     }
@@ -2369,7 +2370,7 @@ public class FileUtils {
             deleteDirectory(srcDir);
             if (srcDir.exists()) {
                 throw new IOException("Failed to delete original directory '" + srcDir +
-                        "' after copy to '" + destDir + "'");
+                    "' after copy to '" + destDir + "'");
             }
         }
     }
@@ -2399,7 +2400,7 @@ public class FileUtils {
         }
         if (!destDir.exists()) {
             throw new FileNotFoundException("Destination directory '" + destDir +
-                    "' does not exist [createDestDir=" + createDestDir + "]");
+                "' does not exist [createDestDir=" + createDestDir + "]");
         }
         if (!destDir.isDirectory()) {
             throw new IOException("Destination '" + destDir + "' is not a directory");
@@ -2446,7 +2447,7 @@ public class FileUtils {
             if (!srcFile.delete()) {
                 FileUtils.deleteQuietly(destFile);
                 throw new IOException("Failed to delete original file '" + srcFile +
-                        "' after copy to '" + destFile + "'");
+                    "' after copy to '" + destFile + "'");
             }
         }
     }
@@ -2475,7 +2476,7 @@ public class FileUtils {
         }
         if (!destDir.exists()) {
             throw new FileNotFoundException("Destination directory '" + destDir +
-                    "' does not exist [createDestDir=" + createDestDir + "]");
+                "' does not exist [createDestDir=" + createDestDir + "]");
         }
         if (!destDir.isDirectory()) {
             throw new IOException("Destination '" + destDir + "' is not a directory");
@@ -2703,6 +2704,55 @@ public class FileUtils {
             t.printStackTrace();
         }
         return returnVal.toUpperCase();
+    }
+
+    public static String getFileName(Context context, String path) {
+        if (StringUtils.isUriPath(path)) {
+            return getFileNameByUri(context, Uri.parse(path));
+        } else {
+            return new File(path).getName();
+        }
+    }
+
+    public static long getFileLength(Context context, String path) {
+        if (StringUtils.isUriPath(path)) {
+            return getFileLengthByUri(context, Uri.parse(path));
+        } else {
+            return new File(path).length();
+        }
+    }
+
+    public static InputStream getFileInputStream(Context context, String path) {
+        try {
+            if (StringUtils.isUriPath(path)) {
+                return context.getContentResolver().openInputStream(Uri.parse(path));
+            } else {
+                return new FileInputStream(new File(path));
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static String getFileNameByUri(Context context, Uri uri) {
+        if (context == null || uri == null) {
+            return "";
+        }
+        Cursor cursor = context.getContentResolver().query(uri, null, null, null, null);
+        cursor.moveToFirst();
+        int index = cursor.getColumnIndex("_display_name");
+        return cursor.getString(index);
+    }
+
+    public static long getFileLengthByUri(Context context, Uri uri) {
+        if (context == null || uri == null) {
+            return 0;
+        }
+        Cursor cursor = context.getContentResolver().query(uri, null, null, null, null);
+        cursor.moveToFirst();
+        int index = cursor.getColumnIndex("_size");
+        return cursor.getLong(index);
     }
 
 

@@ -1,5 +1,18 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.aliyun.vod.common.stream;
 
@@ -76,7 +89,7 @@ public class StringBuilderWriter extends Writer implements Serializable {
      *
      * @param value The character to append
      * @param start The index of the first character
-     * @param end   The index of the last character + 1
+     * @param end The index of the last character + 1
      * @return This writer instance
      */
     @Override
@@ -86,14 +99,14 @@ public class StringBuilderWriter extends Writer implements Serializable {
     }
 
     /**
-     * Closing this writer has no effect.
+     * Closing this writer has no effect. 
      */
     @Override
     public void close() {
     }
 
     /**
-     * Flushing this writer has no effect.
+     * Flushing this writer has no effect. 
      */
     @Override
     public void flush() {
@@ -102,7 +115,7 @@ public class StringBuilderWriter extends Writer implements Serializable {
 
     /**
      * Write a String to the {@link StringBuilder}.
-     *
+     * 
      * @param value The value to write
      */
     @Override
@@ -115,7 +128,7 @@ public class StringBuilderWriter extends Writer implements Serializable {
     /**
      * Write a portion of a character array to the {@link StringBuilder}.
      *
-     * @param value  The value to write
+     * @param value The value to write
      * @param offset The index of the first character
      * @param length The number of characters to write
      */

@@ -1,23 +1,22 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.auth;
 
 import android.text.TextUtils;
 
 import com.alibaba.sdk.android.vod.upload.model.VodInfo;
 import com.aliyun.auth.common.AliyunVodHttpCommon;
+import com.aliyun.auth.common.AliyunVodHttpCommon.ImageType;
 import com.aliyun.auth.common.AliyunVodSignature;
 import com.aliyun.auth.core.AliyunVodKey;
+import com.aliyun.vod.common.utils.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by Mulberry on 2017/11/2.
- */
+
 public class AliyunVodParam {
 
     /**
@@ -27,18 +26,26 @@ public class AliyunVodParam {
      *
      * @return
      */
-    public static Map<String, String> generatePrivateParamtersToUploadVideo(VodInfo vodInfo, boolean transcodeMode, String templateGroupId, String storageLocation, String workFlowId, String appId) {
+    public static Map<String, String> generatePrivateParamtersToUploadVideo(VodInfo vodInfo, boolean transcodeMode, String templateGroupId, String storageLocation,String workFlowId,String appId) {
         Map<String, String> privateParams = new HashMap<>();
         privateParams.put(AliyunVodKey.KEY_VOD_ACTION, AliyunVodHttpCommon.Action.CREATE_UPLOAD_VIDEO);
         privateParams.put(AliyunVodKey.KEY_VOD_TITLE, vodInfo.getTitle());
         privateParams.put(AliyunVodKey.KEY_VOD_FILENAME, vodInfo.getFileName());
-        privateParams.put(AliyunVodKey.KEY_VOD_FILESIZE, vodInfo.getFileSize());
-        privateParams.put(AliyunVodKey.KEY_VOD_DESCRIPTION, vodInfo.getDesc());
-        privateParams.put(AliyunVodKey.KEY_VOD_COVERURL, vodInfo.getCoverUrl());
+        if(!StringUtils.isEmpty(vodInfo.getFileSize())) {
+            privateParams.put(AliyunVodKey.KEY_VOD_FILESIZE, vodInfo.getFileSize());
+        }
+        if(!StringUtils.isEmpty(vodInfo.getDesc())) {
+            privateParams.put(AliyunVodKey.KEY_VOD_DESCRIPTION, vodInfo.getDesc());
+        }
+        if(!StringUtils.isEmpty(vodInfo.getCoverUrl())) {
+            privateParams.put(AliyunVodKey.KEY_VOD_COVERURL, vodInfo.getCoverUrl());
+        }
         privateParams.put(AliyunVodKey.KEY_VOD_CATEID, String.valueOf(vodInfo.getCateId()));
         privateParams.put(AliyunVodKey.KEY_VOD_TAGS, generateTags(vodInfo.getTags()));//generateTags(vodInfo.getTags())
         privateParams.put(AliyunVodKey.KEY_VOD_STORAGELOCATION, storageLocation);
-        privateParams.put(AliyunVodKey.KEY_VOD_USERDATA, vodInfo.getUserData());
+        if(!StringUtils.isEmpty(vodInfo.getUserData())) {
+            privateParams.put(AliyunVodKey.KEY_VOD_USERDATA, vodInfo.getUserData());
+        }
         //TranscodeMode 为NoTranscode时，点播服务无法获取到视频文件的部分参数，需要用户在调用该上传接口时传入UserData中。
         // 当传入TemplateGroupId时，该参数不需要传，两者同时传入时， TemplateGroupId优先级高
         if (TextUtils.isEmpty(templateGroupId)) {
@@ -46,29 +53,38 @@ public class AliyunVodParam {
         } else {
             privateParams.put(AliyunVodKey.KEY_VOD_TEMPLATEGROUPID, templateGroupId);
         }
-        privateParams.put(AliyunVodKey.KEY_VOD_WORKFLOWLD, workFlowId);
-        privateParams.put(AliyunVodKey.KEY_VOD_APPID, appId);
+        privateParams.put(AliyunVodKey.KEY_VOD_WORKFLOWLD,workFlowId);
+        privateParams.put(AliyunVodKey.KEY_VOD_APPID,appId);
 
         return privateParams;
     }
 
     /**
-     * 生成视频点播OpenAPI:CreateUploadImage 的私有参数
+     * 生成视频点播OpenAPI:CreateUploadImage 的私有参数 {@link https://help.aliyun.com/document_detail/55619.html}
      * 不同API需要修改此方法中的参数
      *
      * @return
      */
-    public static Map<String, String> generatePrivateParamtersToUploadImage(VodInfo vodInfo, String storageLocation, String appId) {
+    public static Map<String, String> generatePrivateParamtersToUploadImage(VodInfo vodInfo, String storageLocation,
+        String appId, boolean isCover) {
         Map<String, String> privateParams = new HashMap<>();
         privateParams.put(AliyunVodKey.KEY_VOD_ACTION, AliyunVodHttpCommon.Action.CREATE_UPLOAD_IMAGE);
-        privateParams.put(AliyunVodKey.KEY_VOD_IMAGETYPE, AliyunVodHttpCommon.ImageType.IMAGETYPE_COVER);
+        if (isCover) {
+            privateParams.put(AliyunVodKey.KEY_VOD_IMAGETYPE, AliyunVodHttpCommon.ImageType.IMAGETYPE_COVER);
+        } else {
+            privateParams.put(AliyunVodKey.KEY_VOD_IMAGETYPE, ImageType.IMAGETYPE_DEFAULT);
+        }
         privateParams.put(AliyunVodKey.KEY_VOD_IMAGEEXT, AliyunVodHttpCommon.ImageExt.IMAGEEXT_PNG);
         privateParams.put(AliyunVodKey.KEY_VOD_TITLE, vodInfo.getTitle());
         privateParams.put(AliyunVodKey.KEY_VOD_TAGS, generateTags(vodInfo.getTags()));
         privateParams.put(AliyunVodKey.KEY_VOD_CATEID, String.valueOf(vodInfo.getCateId()));
-        privateParams.put(AliyunVodKey.KEY_VOD_DESCRIPTION, vodInfo.getDesc());
-        privateParams.put(AliyunVodKey.KEY_VOD_STORAGELOCATION, storageLocation);
-        privateParams.put(AliyunVodKey.KEY_VOD_USERDATA, vodInfo.getUserData());
+        if(!StringUtils.isEmpty(vodInfo.getUserData())) {
+            privateParams.put(AliyunVodKey.KEY_VOD_DESCRIPTION, vodInfo.getDesc());
+        }
+        privateParams.put(AliyunVodKey.KEY_VOD_STORAGELOCATION,storageLocation);
+        if(!StringUtils.isEmpty(vodInfo.getUserData())) {
+            privateParams.put(AliyunVodKey.KEY_VOD_USERDATA, vodInfo.getUserData());
+        }
         privateParams.put(AliyunVodKey.KEY_VOD_APPID, appId);
 
         return privateParams;

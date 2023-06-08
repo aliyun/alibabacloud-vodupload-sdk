@@ -1,8 +1,10 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2010-2017 Alibaba Group Holding Limited.
  */
 
 package com.aliyun.vod.common.utils;
+
+import android.webkit.URLUtil;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -81,7 +83,7 @@ public class StringUtils {
      * @return
      */
     public static String nullStrToEmpty(Object str) {
-        return (str == null ? "" : (str instanceof String ? (String) str : str.toString()));
+        return (str == null ? "" : (str instanceof String ? (String)str : str.toString()));
     }
 
     /**
@@ -172,10 +174,10 @@ public class StringUtils {
      *
      * @param href
      * @return <ul>
-     * <li>if href is null, return ""</li>
-     * <li>if not match regx, return source</li>
-     * <li>return the last string that match regx</li>
-     * </ul>
+     *         <li>if href is null, return ""</li>
+     *         <li>if not match regx, return source</li>
+     *         <li>return the last string that match regx</li>
+     *         </ul>
      */
     public static String getHrefInnerHtml(String href) {
         if (isEmpty(href)) {
@@ -238,7 +240,7 @@ public class StringUtils {
                 // } else if (source[i] == 12290) {
                 // source[i] = '.';
             } else if (source[i] >= 65281 && source[i] <= 65374) {
-                source[i] = (char) (source[i] - 65248);
+                source[i] = (char)(source[i] - 65248);
             } else {
                 source[i] = source[i];
             }
@@ -267,11 +269,11 @@ public class StringUtils {
         char[] source = s.toCharArray();
         for (int i = 0; i < source.length; i++) {
             if (source[i] == ' ') {
-                source[i] = (char) 12288;
+                source[i] = (char)12288;
                 // } else if (source[i] == '.') {
                 // source[i] = (char)12290;
             } else if (source[i] >= 33 && source[i] <= 126) {
-                source[i] = (char) (source[i] + 65248);
+                source[i] = (char)(source[i] + 65248);
             } else {
                 source[i] = source[i];
             }
@@ -281,17 +283,16 @@ public class StringUtils {
 
     /**
      * 数据库字符转义
-     *
      * @param keyWord
      * @return
      */
-    public static String sqliteEscape(String keyWord) {
+    public static String sqliteEscape(String keyWord){
         keyWord = keyWord.replace("/", "//");
         keyWord = keyWord.replace("'", "''");
         keyWord = keyWord.replace("[", "/[");
         keyWord = keyWord.replace("]", "/]");
         keyWord = keyWord.replace("%", "/%");
-        keyWord = keyWord.replace("&", "/&");
+        keyWord = keyWord.replace("&","/&");
         keyWord = keyWord.replace("_", "/_");
         keyWord = keyWord.replace("(", "/(");
         keyWord = keyWord.replace(")", "/)");
@@ -300,7 +301,6 @@ public class StringUtils {
 
     /**
      * 截取最后'/' 之后的内容
-     *
      * @param src
      * @return
      */
@@ -310,5 +310,9 @@ public class StringUtils {
             src = src.substring(last_slash + 1);
         }
         return src;
+    }
+
+    public static boolean isUriPath(String path) {
+        return URLUtil.isValidUrl(path);
     }
 }

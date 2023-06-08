@@ -1,11 +1,16 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.common.utils;
 
+import android.content.Context;
+import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Log;
+
+import com.aliyun.vod.common.utils.StringUtils;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,9 +21,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-/**
- * Created by Mulberry on 2018/1/10.
- */
+
 public class MD5 {
     private static final String TAG = "MD5";
 
@@ -40,6 +43,42 @@ public class MD5 {
         return calculatedDigest.equalsIgnoreCase(md5);
     }
 
+    public static boolean checkMD5(Context context, String md5, String path) {
+        if (TextUtils.isEmpty(md5) || TextUtils.isEmpty(path)) {
+            Log.e(TAG, "MD5 string empty or updateFile null");
+            return false;
+        }
+
+        if (context == null) {
+            Log.e(TAG, "context has been release");
+            return false;
+        }
+
+        String calculatedDigest;
+        if (StringUtils.isUriPath(path)) {
+            calculatedDigest = calculateMD5(context, Uri.parse(path));
+        } else {
+            calculatedDigest = calculateMD5(new File(path));
+        }
+        if (calculatedDigest == null) {
+            Log.e(TAG, "calculatedDigest null");
+            return false;
+        }
+
+        Log.v(TAG, "Calculated digest: " + calculatedDigest);
+        Log.v(TAG, "Provided digest: " + md5);
+
+        return calculatedDigest.equalsIgnoreCase(md5);
+    }
+
+    public static String calculateMD5(Context context, String pathOrUri) {
+        if (StringUtils.isUriPath(pathOrUri)) {
+            return calculateMD5(context, Uri.parse(pathOrUri));
+        } else {
+            return calculateMD5(new File(pathOrUri));
+        }
+    }
+
     public static String calculateMD5(File updateFile) {
         MessageDigest digest;
         try {
@@ -57,6 +96,29 @@ public class MD5 {
             return null;
         }
 
+        return calculateMD5ByStream(digest, is);
+    }
+
+    public static String calculateMD5(Context context, Uri uri) {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(TAG, "Exception while getting digest", e);
+            return null;
+        }
+        InputStream is;
+        try {
+            is = context.getContentResolver().openInputStream(uri);
+        } catch (FileNotFoundException e) {
+            Log.e(TAG, "Exception while getting FileInputStream", e);
+            return null;
+        }
+        return calculateMD5ByStream(digest, is);
+    }
+
+    @NotNull
+    private static String calculateMD5ByStream(MessageDigest digest, InputStream is) {
         byte[] buffer = new byte[8192];
         int largeBufferSize = 1024 * 1024;
         int read;

@@ -1,8 +1,21 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2015 pengjianbo(pengjianbosoft@gmail.com), Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 package com.aliyun.vod.qupaiokhttp;
+
 
 
 import android.util.Log;
@@ -27,13 +40,12 @@ public final class HttpRequest {
     }
 
     public static void get(String url, BaseHttpRequestCallback callback) {
-        Log.d(AliyunTag.TAG, "HttpGet:" + url);
+        Log.d(AliyunTag.TAG, "HttpGet:"+url);
         get(url, null, callback);
     }
 
     /**
-     * Get请求
-     *
+     * Get请求 
      * @param url
      * @param params
      * @param callback
@@ -67,8 +79,7 @@ public final class HttpRequest {
     }
 
     /**
-     * Post请求
-     *
+     * Post请求 
      * @param url
      * @param params
      * @param callback
@@ -102,8 +113,7 @@ public final class HttpRequest {
     }
 
     /**
-     * put请求
-     *
+     * put请求 
      * @param url
      * @param params
      * @param callback
@@ -137,8 +147,7 @@ public final class HttpRequest {
     }
 
     /**
-     * delete请求
-     *
+     * delete请求 
      * @param url
      * @param params
      * @param callback
@@ -172,8 +181,7 @@ public final class HttpRequest {
     }
 
     /**
-     * head请求
-     *
+     * head请求 
      * @param url
      * @param params
      * @param callback
@@ -207,8 +215,7 @@ public final class HttpRequest {
     }
 
     /**
-     * patch请求
-     *
+     * patch请求 
      * @param url
      * @param params
      * @param callback
@@ -231,13 +238,12 @@ public final class HttpRequest {
 
     /**
      * 取消请求
-     *
      * @param url
      */
     public static void cancel(String url) {
-        if (!StringUtils.isEmpty(url)) {
+        if ( !StringUtils.isEmpty(url) ) {
             Call call = OkHttpCallManager.getInstance().getCall(url);
-            if (call != null) {
+            if ( call != null ) {
                 call.cancel();
             }
 
@@ -251,9 +257,8 @@ public final class HttpRequest {
 
     /**
      * 下载文件
-     *
      * @param url
-     * @param target   保存的文件
+     * @param target 保存的文件
      * @param callback
      */
     public static void download(String url, File target, FileDownloadCallback callback) {
@@ -266,7 +271,7 @@ public final class HttpRequest {
     private static void executeRequest(Method method, String url, RequestParams params, OkHttpClient.Builder builder, BaseHttpRequestCallback callback) {
 
         if (!StringUtils.isEmpty(url)) {
-            if (builder == null) {
+            if(builder == null) {
                 builder = OkHttpFinal.getInstance().getOkHttpClientBuilder();
             }
             OkHttpTask task = new OkHttpTask(method, url, params, builder, callback);

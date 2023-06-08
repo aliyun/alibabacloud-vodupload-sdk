@@ -1,9 +1,13 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2010-2017 Alibaba Group Holding Limited.
  */
 
 package com.aliyun.vod.common.httpfinal;
 
+import android.text.TextUtils;
+import android.util.Log;
+
+import com.aliyun.vod.common.global.AliyunTag;
 import com.aliyun.vod.qupaiokhttp.OkHttpFinal;
 import com.aliyun.vod.qupaiokhttp.OkHttpFinalConfiguration;
 import com.aliyun.vod.qupaiokhttp.Part;
@@ -17,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
@@ -64,19 +69,32 @@ public class QupaiHttpFinal implements HttpInterface {
             final X509TrustManager trustManager = new X509TrustManager() {
                 @Override
                 public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-
+                    Log.d(AliyunTag.TAG, "X509TrustManager checkClientTrusted: " + (chain == null ? "null" : chain.length));
                 }
 
                 @Override
                 public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-
+                    checkServerTrusted(chain, authType, null);
                 }
 
-                public void checkServerTrusted(X509Certificate[] chain, String authType, String host) {
+                public void checkServerTrusted(X509Certificate[] chain, String authType, String host) throws CertificateException {
+                    if (chain == null) {
+                        Log.e(AliyunTag.TAG, "X509TrustManager checkServerTrusted: X509Certificate is null");
+                        throw new IllegalArgumentException("X509TrustManager checkServerTrusted: X509Certificate is null");
+                    }
+                    try {
+                        if (chain.length > 0) {
+                            chain[0].checkValidity();
+                        }
+                        Log.d(AliyunTag.TAG, "X509TrustManager checkServerTrusted: checkValidity " + chain.length);
+                    } catch (Exception e) {
+                        Log.e(AliyunTag.TAG, "X509TrustManager checkServerTrusted: checkValidity exception " + e.getMessage());
+                    }
                 }
 
                 @Override
                 public X509Certificate[] getAcceptedIssuers() {
+                    Log.d(AliyunTag.TAG, "X509TrustManager getAcceptedIssuers:");
                     return new X509Certificate[0];
                 }
             };
@@ -87,7 +105,18 @@ public class QupaiHttpFinal implements HttpInterface {
             builder.setHostnameVerifier(new HostnameVerifier() {
                 @Override
                 public boolean verify(String hostname, SSLSession session) {
-                    return true;
+                    if (!TextUtils.isEmpty(hostname)) {
+                        HostnameVerifier hostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
+                        try {
+                            boolean result = hostnameVerifier.verify(hostname, session);
+                            Log.d(AliyunTag.TAG, "HostnameVerifier verify true, default verify " + result);
+                        } catch (Exception exception) {
+                            Log.d(AliyunTag.TAG, "HostnameVerifier verify true, default exception " + exception.getMessage());
+                        }
+                        return true;
+                    }
+                    Log.d(AliyunTag.TAG, "HostnameVerifier verify false");
+                    return false;
                 }
             });
         } catch (NoSuchAlgorithmException e) {

@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.internal;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.HandlerThread;
 
 import com.alibaba.sdk.android.oss.ClientConfiguration;
 import com.alibaba.sdk.android.oss.ClientException;
@@ -14,7 +15,6 @@ import com.alibaba.sdk.android.oss.ServiceException;
 import com.alibaba.sdk.android.oss.callback.OSSCompletedCallback;
 import com.alibaba.sdk.android.oss.callback.OSSProgressCallback;
 import com.alibaba.sdk.android.oss.common.OSSLog;
-import com.alibaba.sdk.android.oss.common.utils.IOUtils;
 import com.alibaba.sdk.android.oss.model.AbortMultipartUploadRequest;
 import com.alibaba.sdk.android.oss.model.CompleteMultipartUploadRequest;
 import com.alibaba.sdk.android.oss.model.CompleteMultipartUploadResult;
@@ -26,54 +26,59 @@ import com.alibaba.sdk.android.oss.model.ObjectMetadata;
 import com.alibaba.sdk.android.oss.model.PartETag;
 import com.alibaba.sdk.android.oss.model.UploadPartRequest;
 import com.alibaba.sdk.android.oss.model.UploadPartResult;
+import com.alibaba.sdk.android.vod.upload.VODUploadClientImpl;
 import com.alibaba.sdk.android.vod.upload.common.UploadStateType;
 import com.alibaba.sdk.android.vod.upload.common.utils.StringUtil;
+import com.alibaba.sdk.android.vod.upload.exception.VODErrorCode;
+import com.alibaba.sdk.android.vod.upload.model.FilePartInfo;
 import com.alibaba.sdk.android.vod.upload.model.OSSConfig;
 import com.alibaba.sdk.android.vod.upload.model.UploadFileInfo;
 import com.aliyun.vod.common.httpfinal.QupaiHttpFinal;
+import com.aliyun.vod.log.core.AliyunLogCommon;
+import com.aliyun.vod.log.core.AliyunLogger;
+import com.aliyun.vod.log.core.AliyunLoggerManager;
+import com.aliyun.vod.log.core.LogService;
+import com.aliyun.vod.log.struct.AliyunLogEvent;
+import com.aliyun.vod.log.struct.AliyunLogKey;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.io.RandomAccessFile;
 import java.net.SocketTimeoutException;
+import java.nio.channels.FileLock;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLHandshakeException;
 
-/**
- * Created by Leigang on 16/6/25.
- */
+
 public class OSSUploaderImpl implements OSSUploader {
-    private final static int SMALL_BLOCK_SIZE = 256 * 1024;
-    private final static int LARGE_BLOCK_SIZE = 512 * 1024;
     private final static int RETRY_INTERVAL = 3 * 1000;
     private OSSConfig config;
     private OSSUploadListener listener;
     private ClientConfiguration clientConfig;
     private OSS oss;
     private boolean retryShouldNotify;
-    private File file;
-    private InputStream inputStream;
     private Context context;
     private String uploadId;
     private Long uploadedSize;
-    private Integer currentUploadLength;
-    private Integer lastUploadedBlockIndex;
-    private Integer blockSize;
+    private long currentPartSize;
+    /**
+     * 当前分片号，-1表示结束
+     */
+    private int curPartNumber;
     private UploadFileInfo uploadFileInfo;
-    private OSSRequest ossRequest;
 
-    //    private UploadPartRequest uploadPartRequest;
-//    private InitiateMultipartUploadRequest initiateMultipartUploadRequest;
-//    private CompleteMultipartUploadRequest completeMultipartUploadRequest;
     private List<PartETag> uploadedParts = new ArrayList<PartETag>();
     private OSSCompletedCallback<InitiateMultipartUploadRequest, InitiateMultipartUploadResult> initCallback;
     private OSSCompletedCallback<UploadPartRequest, UploadPartResult> partCallback;
     private OSSCompletedCallback<CompleteMultipartUploadRequest, CompleteMultipartUploadResult> completedCallback;
+
+    private final HandlerThread mHandleThread = new HandlerThread("UploadThread");
+    private Handler mHandler = null;
 
     public OSSUploaderImpl(Context context) {
         this.context = context;
@@ -92,52 +97,55 @@ public class OSSUploaderImpl implements OSSUploader {
 
     }
 
+    private Handler getHandler() {
+        if (mHandler == null) {
+            mHandleThread.start();
+            mHandler = new Handler(mHandleThread.getLooper());
+        }
+        return mHandler;
+    }
+
     @Override
-    public void start(UploadFileInfo uploadFileInfo) throws FileNotFoundException {
-        if (null == this.uploadFileInfo) {
-            ;
-        } else if (!uploadFileInfo.equals(this.uploadFileInfo)) {
-            uploadFileInfo.setStatus(UploadStateType.INIT);
-        }
+    public void start(final UploadFileInfo uploadFileInfo) {
+        OSSLog.logDebug("[OSSUploader] - start");
 
-        if (null != null &&
-                UploadStateType.INIT != uploadFileInfo.getStatus() &&
-                UploadStateType.CANCELED != uploadFileInfo.getStatus()) {
-            OSSLog.logDebug("[OSSUploader] - status: " + uploadFileInfo.getStatus() + " cann't be start!");
-            return;
-        }
+        getHandler().post(new Runnable() {
+            @Override
+            public void run() {
+                OSSLog.logDebug("[OSSUploader] - start Runnable");
+                if (!uploadFileInfo.equals(OSSUploaderImpl.this.uploadFileInfo)) {
+                    uploadFileInfo.setStatus(UploadStateType.INIT);
+                }
 
-        OSSLog.logDebug("[OSSUploader] - start..." + uploadFileInfo.getFilePath());
+                if (null != null &&
+                        UploadStateType.INIT != uploadFileInfo.getStatus() &&
+                        UploadStateType.CANCELED != uploadFileInfo.getStatus()) {
+                    OSSLog.logDebug("[OSSUploader] - status: " + uploadFileInfo.getStatus() + " cann't be start!");
+                    return;
+                }
 
-        this.uploadFileInfo = uploadFileInfo;
-        oss = new OSSClient(context, uploadFileInfo.getEndpoint(), config.getProvider(),
-                clientConfig);
-        file = new File(uploadFileInfo.getFilePath());
-        if (file.length() < 128 * 1024 * 1024) {
-            blockSize = SMALL_BLOCK_SIZE;
-        } else {
-            blockSize = LARGE_BLOCK_SIZE;
-        }
-        inputStream = new FileInputStream(file);
-
-        uploadedSize = -1L;
-        lastUploadedBlockIndex = 0;
-        uploadedParts.clear();
-        ossRequest = null;
-        retryShouldNotify = true;
-
-        initMultiPartUpload();
-        uploadFileInfo.setStatus(UploadStateType.UPLOADING);
+                OSSUploaderImpl.this.uploadFileInfo = uploadFileInfo;
+                oss = new OSSClient(context, uploadFileInfo.getEndpoint(), config.getProvider(),
+                        clientConfig);
+                uploadedSize = -1L;
+                //默认从分片2开始上传
+                curPartNumber = 2;
+                uploadedParts.clear();
+                retryShouldNotify = true;
+                uploadFileInfo.setStatus(UploadStateType.UPLOADING);
+                initMultiPartUpload();
+            }
+        });
     }
 
     @Override
     public void setOSSClientConfiguration(ClientConfiguration configuration) {
         clientConfig = new ClientConfiguration();
-        if (configuration == null) {
+        if (configuration == null){
             clientConfig.setMaxErrorRetry(Integer.MAX_VALUE);
             clientConfig.setSocketTimeout(ClientConfiguration.getDefaultConf().getSocketTimeout());
             clientConfig.setConnectionTimeout(ClientConfiguration.getDefaultConf().getSocketTimeout());
-        } else {
+        }else {
             clientConfig.setMaxErrorRetry(configuration.getMaxErrorRetry());
             clientConfig.setSocketTimeout(configuration.getSocketTimeout());
             clientConfig.setConnectionTimeout(configuration.getConnectionTimeout());
@@ -152,13 +160,22 @@ public class OSSUploaderImpl implements OSSUploader {
 
         UploadStateType status = uploadFileInfo.getStatus();
         if (!UploadStateType.INIT.equals(status) && !UploadStateType.UPLOADING.equals(status) &&
-                !UploadStateType.PAUSED.equals(status) && !UploadStateType.PAUSING.equals(status)) {
+            !UploadStateType.PAUSED.equals(status) && !UploadStateType.PAUSING.equals(status)) {
             OSSLog.logDebug("[OSSUploader] - status: " + status + " cann't be cancel!");
             return;
         }
-
         OSSLog.logDebug("[OSSUploader] - cancel...");
         uploadFileInfo.setStatus(UploadStateType.CANCELED);
+        mHandler.removeCallbacksAndMessages(null);
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                OSSLog.logDebug("[OSSUploader] - This task is cancelled!");
+                uploadPartFailedLogger(UploadStateType.CANCELED.toString(),"This task is user cancelled!");
+                abortUpload();
+                release();
+            }
+        });
     }
 
     @Override
@@ -175,25 +192,31 @@ public class OSSUploaderImpl implements OSSUploader {
 
     @Override
     public void resume() {
-        UploadStateType status = uploadFileInfo.getStatus();
+        final UploadStateType status = uploadFileInfo.getStatus();
         if (!UploadStateType.PAUSING.equals(status) && !UploadStateType.PAUSED.equals(status)) {
             OSSLog.logDebug("[OSSUploader] - status: " + status + " cann't be resume!");
             return;
         }
 
         OSSLog.logDebug("[OSSUploader] - resume...");
-        if (UploadStateType.PAUSING.equals(status)) {
-            uploadFileInfo.setStatus(UploadStateType.UPLOADING);
-        } else if (UploadStateType.PAUSED.equals(status)) {
-            uploadFileInfo.setStatus(UploadStateType.UPLOADING);
-            if (uploadedSize == -1L) {
-                initMultiPartUpload();
-            } else if (uploadedSize < file.length()) {
-                uploadPart();
-            } else {
-                completeMultiPartUpload();
+        getHandler().post(new Runnable() {
+            @Override
+            public void run() {
+                OSSLog.logDebug("[OSSUploader] - resume Runnable");
+                if (UploadStateType.PAUSING.equals(status)) {
+                    uploadFileInfo.setStatus(UploadStateType.UPLOADING);
+                } else if (UploadStateType.PAUSED.equals(status)){
+                    uploadFileInfo.setStatus(UploadStateType.UPLOADING);
+                    if (uploadedSize == -1L) {
+                        initMultiPartUpload();
+                    } else if (curPartNumber != -1) {
+                        uploadPart();
+                    } else {
+                        completeMultiPartUpload();
+                    }
+                }
             }
-        }
+        });
     }
 
     @Override
@@ -201,9 +224,23 @@ public class OSSUploaderImpl implements OSSUploader {
     }
 
     private void initMultiPartUpload() {
-        ossRequest = new InitiateMultipartUploadRequest(
-                uploadFileInfo.getBucket(), uploadFileInfo.getObject());
-        oss.asyncInitMultipartUpload((InitiateMultipartUploadRequest) ossRequest, initCallback);
+        getHandler().post(new Runnable() {
+            @Override
+            public void run() {
+                OSSLog.logDebug("[OSSUploader] - initMultiPartUpload");
+                startUploadLogger(uploadFileInfo);
+                InitiateMultipartUploadRequest ossRequest = new InitiateMultipartUploadRequest(
+                        uploadFileInfo.getBucket(), uploadFileInfo.getObject());
+                try {
+                    InitiateMultipartUploadResult result = oss.initMultipartUpload(ossRequest);
+                    initCallback.onSuccess(ossRequest, result);
+                } catch (ClientException e) {
+                    initCallback.onFailure(ossRequest, e, null);
+                } catch (ServiceException e) {
+                    initCallback.onFailure(ossRequest, null, e);
+                }
+            }
+        });
     }
 
     private void abortUpload() {
@@ -212,64 +249,107 @@ public class OSSUploaderImpl implements OSSUploader {
                 AbortMultipartUploadRequest abort = new AbortMultipartUploadRequest(
                         uploadFileInfo.getBucket(), uploadFileInfo.getObject(), uploadId);
                 oss.abortMultipartUpload(abort);
-                inputStream.close();
             } catch (ClientException e) {
                 OSSLog.logWarn("[OSSUploader] - abort ClientException!code:" + e.getCause() +
                         ", message:" + e.getMessage());
             } catch (ServiceException e) {
                 OSSLog.logWarn("[OSSUploader] - abort ServiceException!code:" + e.getCause() +
                         ", message:" + e.getMessage());
-            } catch (IOException e) {
-                OSSLog.logWarn("[OSSUploader] - abort IOException!code:" + e.getCause() +
-                        ", message:" + e.getMessage());
             }
         }
     }
 
     private void completeMultiPartUpload() {
-        CompleteMultipartUploadRequest request = new CompleteMultipartUploadRequest(
-                uploadFileInfo.getBucket(), uploadFileInfo.getObject(), uploadId,
-                uploadedParts);
+        getHandler().post(new Runnable() {
+            @Override
+            public void run() {
+                OSSLog.logDebug("[OSSUploader] - completeMultiPartUpload");
+                CompleteMultipartUploadRequest request = new CompleteMultipartUploadRequest(
+                        uploadFileInfo.getBucket(), uploadFileInfo.getObject(), uploadId,
+                        uploadedParts);
 
-        ObjectMetadata metadata = request.getMetadata();
-        if (metadata == null) {
-            metadata = new ObjectMetadata();
-        }
+                ObjectMetadata metadata = request.getMetadata();
+                if (metadata == null) {
+                    metadata = new ObjectMetadata();
+                }
 
-        if (null != uploadFileInfo.getVodInfo()) {
-            metadata.addUserMetadata("x-oss-notification",
-                    uploadFileInfo.getVodInfo().toVodJsonStringWithBase64());
-        }
-        request.setMetadata(metadata);
-        ossRequest = request;
-
-        oss.asyncCompleteMultipartUpload(request, completedCallback);
+                if (null != uploadFileInfo.getVodInfo()) {
+                    metadata.addUserMetadata("x-oss-notification",
+                            uploadFileInfo.getVodInfo().toVodJsonStringWithBase64());
+                }
+                request.setMetadata(metadata);
+                try {
+                    CompleteMultipartUploadResult result = oss.completeMultipartUpload(request);
+                    completedCallback.onSuccess(request, result);
+                } catch (ClientException e) {
+                    completedCallback.onFailure(request, e, null);
+                    e.printStackTrace();
+                } catch (ServiceException e) {
+                    completedCallback.onFailure(request, null, e);
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     private void uploadPart() {
-        ossRequest = new UploadPartRequest(uploadFileInfo.getBucket(),
-                uploadFileInfo.getObject(), uploadId, lastUploadedBlockIndex + 1);
-
-        currentUploadLength = (int) Math.min(blockSize, file.length() - uploadedSize);
-        OSSLog.logDebug("[OSSUploader] - filesize:" + file.length() + ", blocksize: " + currentUploadLength);
-
-        try {
-            ((UploadPartRequest) ossRequest).setPartContent(IOUtils.readStreamAsBytesArray(inputStream,
-                    currentUploadLength));
-        } catch (IOException e) {
-            OSSLog.logError("[OSSUploader] - read content from file failed!name:" + file.getName() +
-                    ", offset:" + uploadedSize + ", length:" + currentUploadLength);
-            return;
-        }
-
-        ((UploadPartRequest) ossRequest).setProgressCallback(new OSSProgressCallback<UploadPartRequest>() {
+        getHandler().post(new Runnable() {
             @Override
-            public void onProgress(UploadPartRequest uploadPartRequest, long l, long l1) {
-                listener.onUploadProgress(uploadPartRequest, uploadedSize + l, file.length());
+            public void run() {
+                OSSLog.logDebug("[OSSUploader] - uploadPart PartNumber:"+curPartNumber);
+                final UploadPartRequest ossRequest = new UploadPartRequest(uploadFileInfo.getBucket(),
+                        uploadFileInfo.getObject(), uploadId, curPartNumber);
+                if (uploadFileInfo.getPartInfoList().size() < curPartNumber) {
+                    uploadFileInfo.setStatus(UploadStateType.PAUSED);
+                    return;
+                }
+                FilePartInfo partInfo = uploadFileInfo.getPartInfoList().get(curPartNumber - 1);
+                byte[] bytes = new byte[(int) partInfo.getSize()];
+                FileLock fileLock = null;
+                RandomAccessFile randomAccessFile = null;
+                try {
+                    randomAccessFile = new RandomAccessFile(uploadFileInfo.getFilePath(), "r");
+                    fileLock = randomAccessFile.getChannel().lock(partInfo.getSeek(), partInfo.getSize(), true);
+                    randomAccessFile.seek(partInfo.getSeek());
+                    randomAccessFile.read(bytes);
+                    ossRequest.setPartContent(bytes);
+                } catch (FileNotFoundException e) {
+                    OSSLog.logError("[OSSUploader] - uploadPart RandomAccessFile FileNotFoundException");
+                } catch (IOException e) {
+                    OSSLog.logError("[OSSUploader] - uploadPart RandomAccessFile IOException");
+                } finally {
+                    if (randomAccessFile != null) {
+                        try {
+                            randomAccessFile.close();
+                        } catch (IOException ignored) {
+                        }
+                    }
+                    if (fileLock != null) {
+                        try {
+                            fileLock.release();
+                        } catch (IOException ignored) {
+                        }
+                    }
+                }
+                currentPartSize = partInfo.getSize();
+
+                ossRequest.setProgressCallback(new OSSProgressCallback<UploadPartRequest>() {
+                    @Override
+                    public void onProgress(UploadPartRequest uploadPartRequest, long l, long l1) {
+                        listener.onUploadProgress(uploadPartRequest, uploadedSize + l, uploadFileInfo.getFileLength());
+                    }
+                });
+                try {
+                    UploadPartResult result = oss.uploadPart(ossRequest);
+                    startUploadPartLogger();
+                    partCallback.onSuccess(ossRequest, result);
+                } catch (ClientException e) {
+                    partCallback.onFailure(ossRequest, e, null);
+                } catch (ServiceException e) {
+                    partCallback.onFailure(ossRequest, null, e);
+                }
             }
         });
-
-        oss.asyncUploadPart(((UploadPartRequest) ossRequest), partCallback);
     }
 
     public OSSUploadRetryType shouldRetry(Exception e) {
@@ -281,13 +361,15 @@ public class OSSUploaderImpl implements OSSUploader {
                 return OSSUploadRetryType.ShouldNotRetry;
             } else if (localException instanceof IllegalArgumentException) {
                 return OSSUploadRetryType.ShouldNotRetry;
-            } else if (localException instanceof SocketTimeoutException) {
+            } else  if (localException instanceof  SocketTimeoutException){
                 return OSSUploadRetryType.ShouldNotRetry;
-            } else if (localException instanceof SSLHandshakeException) {
+            } else if (localException instanceof SSLHandshakeException){
                 return OSSUploadRetryType.ShouldNotRetry;
             }
             OSSLog.logDebug("shouldRetry - " + e.toString());
-            e.getCause().printStackTrace();
+            if (e.getCause() != null) {
+                e.getCause().printStackTrace();
+            }
             return OSSUploadRetryType.ShouldRetry;
         } else if (e instanceof ServiceException) {
             ServiceException serviceException = (ServiceException) e;
@@ -312,6 +394,7 @@ public class OSSUploaderImpl implements OSSUploader {
 
             if (UploadStateType.CANCELED.equals(status)) {
                 OSSLog.logError("onSuccess: upload has been canceled, ignore notify.");
+                uploadCancelLogger();
                 return;
             }
 
@@ -330,19 +413,34 @@ public class OSSUploaderImpl implements OSSUploader {
                 UploadPartRequest request = (UploadPartRequest) req;
                 OSSLog.logDebug("[OSSUploader] - UploadPartResult onSuccess ------------------" + request.getPartNumber());
                 UploadPartResult result = (UploadPartResult) res;
-                uploadedParts.add(new PartETag(lastUploadedBlockIndex + 1, result.getETag()));
-                uploadedSize += currentUploadLength;
-                lastUploadedBlockIndex++;
+                //PartETag需要按片段号排序，所以第一个片段要移到头部
+                if (curPartNumber == 1) {
+                    uploadedParts.add(0, new PartETag(curPartNumber, result.getETag()));
+                } else {
+                    uploadedParts.add(new PartETag(curPartNumber, result.getETag()));
+                }
+
+                uploadedSize += currentPartSize;
+                FilePartInfo partInfo = uploadFileInfo.getPartInfoList().get(curPartNumber - 1);
+
+                //更新片段号，如果是1表示已上传完成
+                if (curPartNumber == 1) {
+                    curPartNumber = -1;
+                } else if (uploadFileInfo.getFileLength() != -1 && uploadFileInfo.getFileLength() == (partInfo.getSeek() + partInfo.getSize())) {
+                    //上传完最后一个片段再上传第一个片段
+                    curPartNumber = 1;
+                } else {
+                    curPartNumber++;
+                }
+                uploadPartCompletedLogger();
                 if (UploadStateType.CANCELED.equals(status)) {
-                    abortUpload();
-                    listener.onUploadFailed(UploadStateType.CANCELED.toString(), "This task is cancelled!");
-                    OSSLog.logDebug("[OSSUploader] - This task is cancelled!");
                     return;
                 } else if (UploadStateType.UPLOADING.equals(status)) {
-                    if (uploadedSize < file.length()) {
-                        uploadPart();
-                    } else {
+                    //-1表示所有片段都已上传完成
+                    if (curPartNumber == -1) {
                         completeMultiPartUpload();
+                    } else {
+                        uploadPart();
                     }
                 } else if (UploadStateType.PAUSING.equals(status)) {
                     OSSLog.logDebug("[OSSUploader] - This task is pausing!");
@@ -350,13 +448,10 @@ public class OSSUploaderImpl implements OSSUploader {
                 }
             } else if (res instanceof CompleteMultipartUploadResult) {
                 OSSLog.logDebug("[OSSUploader] - CompleteMultipartUploadResult onSuccess ------------------");
-                try {
-                    inputStream.close();
-                } catch (IOException e) {
-                    OSSLog.logError("CompleteMultipartUploadResult inputStream close failed.");
-                }
                 uploadFileInfo.setStatus(UploadStateType.SUCCESS);
                 listener.onUploadSucceed();
+                uploadSuccessedLogger();
+                release();
             }
         }
 
@@ -378,6 +473,7 @@ public class OSSUploaderImpl implements OSSUploader {
 
             if (UploadStateType.CANCELED.equals(status)) {
                 OSSLog.logError("onFailure error: upload has been canceled, ignore notify.");
+                uploadCancelLogger();
                 return;
             }
 
@@ -396,19 +492,23 @@ public class OSSUploaderImpl implements OSSUploader {
                         e.printStackTrace();
                     }
 
-                    if (request instanceof InitiateMultipartUploadRequest) {
-                        oss.asyncInitMultipartUpload((InitiateMultipartUploadRequest) ossRequest, initCallback);
-                    } else if (request instanceof CompleteMultipartUploadRequest) {
-                        oss.asyncCompleteMultipartUpload((CompleteMultipartUploadRequest) ossRequest, completedCallback);
-                    } else if (request instanceof UploadPartRequest) {
-                        oss.asyncUploadPart((UploadPartRequest) ossRequest, partCallback);
-                    }
+                    onRetry(request);
 
                     if (retryShouldNotify) {
                         if (clientException != null) {
                             listener.onUploadRetry(UploaderErrorCode.CLIENT_EXCEPTION, clientException.toString());
+                            if(request instanceof UploadPartRequest){
+                                uploadPartFailedLogger(UploaderErrorCode.CLIENT_EXCEPTION,clientException.getMessage().toString());
+                            }else {
+                                uploadFailedLogger(UploaderErrorCode.CLIENT_EXCEPTION,clientException.getMessage().toString());
+                            }
                         } else if (serviceException != null) {
                             listener.onUploadRetry(serviceException.getErrorCode(), serviceException.getMessage());
+                            if(request instanceof UploadPartRequest){
+                                uploadPartFailedLogger(serviceException.getErrorCode(), serviceException.getMessage());
+                            }else {
+                                uploadFailedLogger(serviceException.getErrorCode(), serviceException.getMessage());
+                            }
                         }
 
                         retryShouldNotify = false;
@@ -419,29 +519,207 @@ public class OSSUploaderImpl implements OSSUploader {
                 case ShouldGetSTS:
                     uploadFileInfo.setStatus(UploadStateType.PAUSED);
                     listener.onUploadTokenExpired();
+                    uploadFailedLogger(VODErrorCode.UPLOAD_EXPIRED, "Upload Token Expired");
                     break;
 
                 case ShouldNotRetry:
                     uploadFileInfo.setStatus(UploadStateType.FAIlURE);
                     if (clientException != null) {
                         listener.onUploadFailed(UploaderErrorCode.CLIENT_EXCEPTION, clientException.toString());
-                        if (request instanceof UploadPartRequest) {
-                        } else {
+                        if(request instanceof UploadPartRequest){
+                            uploadPartFailedLogger(UploaderErrorCode.CLIENT_EXCEPTION,clientException.getMessage().toString());
+                        }else {
+                            uploadFailedLogger(UploaderErrorCode.CLIENT_EXCEPTION,clientException.getMessage().toString());
                         }
 
                     } else if (serviceException != null) {
                         listener.onUploadFailed(serviceException.getErrorCode(), serviceException.getMessage());
-                        if (request instanceof UploadPartRequest) {
-                        } else {
+                        if(request instanceof UploadPartRequest){
+                            uploadPartFailedLogger(serviceException.getErrorCode(), serviceException.getMessage());
+                        }else {
+                            uploadFailedLogger(serviceException.getErrorCode(), serviceException.getMessage());
                         }
                     }
-                    break;
-                default:
+
                     break;
             }
         }
     }
 
+    private void onRetry(final OSSRequest request){
+        getHandler().post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (request instanceof InitiateMultipartUploadRequest) {
+                        InitiateMultipartUploadResult result = oss.initMultipartUpload((InitiateMultipartUploadRequest) request);
+                        initCallback.onSuccess((InitiateMultipartUploadRequest) request, result);
+                    } else if (request instanceof CompleteMultipartUploadRequest) {
+                        CompleteMultipartUploadResult result = oss.completeMultipartUpload((CompleteMultipartUploadRequest) request);
+                        completedCallback.onSuccess((CompleteMultipartUploadRequest) request, result);
+                    } else if (request instanceof UploadPartRequest) {
+                        UploadPartResult result = oss.uploadPart((UploadPartRequest) request);
+                        partCallback.onSuccess((UploadPartRequest) request, result);
+                    }
+                } catch (ClientException e) {
+                    if (request instanceof InitiateMultipartUploadRequest) {
+                        initCallback.onFailure((InitiateMultipartUploadRequest) request, e, null);
+                    } else if (request instanceof CompleteMultipartUploadRequest) {
+                        completedCallback.onFailure((CompleteMultipartUploadRequest) request, e, null);
+                    } else if (request instanceof UploadPartRequest) {
+                        partCallback.onFailure((UploadPartRequest) request, e, null);
+                    }
+                } catch (ServiceException e) {
+                    if (request instanceof InitiateMultipartUploadRequest) {
+                        initCallback.onFailure((InitiateMultipartUploadRequest) request, null, e);
+                    } else if (request instanceof CompleteMultipartUploadRequest) {
+                        completedCallback.onFailure((CompleteMultipartUploadRequest) request, null, e);
+                    } else if (request instanceof UploadPartRequest) {
+                        partCallback.onFailure((UploadPartRequest) request, null, e);
+                    }
+                }
+            }
+        });
+    }
+
+    private void release() {
+        if (mHandler != null) {
+            mHandleThread.quit();
+            mHandler = null;
+        }
+    }
+
+    private void startUploadLogger(final UploadFileInfo fileInfo) {
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            logger.updateRequestID();
+            LogService logService = logger.getLogService();
+            if (logService != null) {
+                logService.execute(new Runnable() {
+                    @Override
+                    public void run() {
+//                        Bitmap bitmap = FileUtils.getVideoSize(fileInfo.getFilePath());
+                        Map<String, String> args = new HashMap<>();
+//                        args.put(AliyunLogKey.KEY_FILE_TYPE, FileUtils.getMimeType(fileInfo.getFilePath()));
+//                        args.put(AliyunLogKey.KEY_FILE_SIZE, String.valueOf(mFileLength));//byte???
+//                        args.put(AliyunLogKey.KEY_FILE_WIDTH, bitmap == null ?"":String.valueOf(bitmap.getWidth()));
+//                        args.put(AliyunLogKey.KEY_FILE_HEIGHT,bitmap == null ?"":String.valueOf(bitmap.getHeight()) );
+//                        args.put(AliyunLogKey.KEY_FILE_MD5, FileUtils.getMd5OfFile(fileInfo.getFilePath()));
+//                        args.put(AliyunLogKey.KEY_PART_SIZE, String.valueOf(blockSize));
+                        args.put(AliyunLogKey.KEY_BUCKET, fileInfo.getBucket());
+                        args.put(AliyunLogKey.KEY_OBJECT_KEY, fileInfo.getObject());
+                        logger.pushLog(args, AliyunLogCommon.Product.VIDEO_UPLOAD,AliyunLogCommon.LogLevel.DEBUG, AliyunLogCommon.MODULE,AliyunLogCommon.SubModule.UPLOAD,
+                                AliyunLogEvent.EVENT_UPLOAD_STARTED,AliyunLogCommon.LogStores.UPLOAD,null);
+                    }
+                });
+            }
+        }
+    }
+
+    private void startUploadPartLogger() {
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            LogService logService = logger.getLogService();
+            if (logService != null) {
+                logService.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        Map<String, String> args = new HashMap<>();
+                        args.put(AliyunLogKey.KEY_UPLOADID, uploadId);
+                        args.put(AliyunLogKey.KEY_PART_NUMBER, String.valueOf(curPartNumber));
+                        args.put(AliyunLogKey.KEY_PART_RETRY, retryShouldNotify ? "0" : "1");
+                        logger.pushLog(args, AliyunLogCommon.Product.VIDEO_UPLOAD,AliyunLogCommon.LogLevel.DEBUG, AliyunLogCommon.MODULE,AliyunLogCommon.SubModule.UPLOAD,
+                                AliyunLogEvent.EVENT_UPLOAD_PART_START,AliyunLogCommon.LogStores.UPLOAD,null);
+                    }
+                });
+            }
+        }
+    }
+
+    private void uploadPartCompletedLogger(){
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            LogService logService = logger.getLogService();
+            if (logService != null) {
+                logService.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        logger.pushLog(null,AliyunLogCommon.Product.VIDEO_UPLOAD,AliyunLogCommon.LogLevel.DEBUG, AliyunLogCommon.MODULE,AliyunLogCommon.SubModule.UPLOAD,
+                                AliyunLogEvent.EVENT_UPLOAD_PART_COMPLETED,AliyunLogCommon.LogStores.UPLOAD,null);
+                    }
+                });
+            }
+        }
+    }
+
+    private void uploadSuccessedLogger(){
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            LogService logService = logger.getLogService();
+            if (logService != null) {
+                logService.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        logger.pushLog(null, AliyunLogCommon.Product.VIDEO_UPLOAD,AliyunLogCommon.LogLevel.DEBUG, AliyunLogCommon.MODULE,AliyunLogCommon.SubModule.UPLOAD,
+                                AliyunLogEvent.EVENT_UPLOAD_SUCCESSED,AliyunLogCommon.LogStores.UPLOAD,null);
+                    }
+                });
+            }
+        }
+    }
+
+    private void uploadCancelLogger(){
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            LogService logService = logger.getLogService();
+            if (logService != null) {
+                logService.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        logger.pushLog(null, AliyunLogCommon.Product.VIDEO_UPLOAD,AliyunLogCommon.LogLevel.DEBUG, AliyunLogCommon.MODULE,AliyunLogCommon.SubModule.UPLOAD,
+                                AliyunLogEvent.EVENT_UPLOAD_CANCEL,AliyunLogCommon.LogStores.UPLOAD,null);
+                    }
+                });
+            }
+        }
+    }
+
+    private void uploadFailedLogger(final String code,final String message){
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            LogService logService = logger.getLogService();
+            if (logService != null) {
+                logService.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        Map<String, String> args = new HashMap<>();
+                        args.put(AliyunLogKey.KEY_UPLOAD_PART_FAILED_CODE, code);
+                        args.put(AliyunLogKey.KEY_UPLOAD_PART_FAILED_MESSAGE, message);
+                        logger.pushLog(args, AliyunLogCommon.Product.VIDEO_UPLOAD,AliyunLogCommon.LogLevel.DEBUG, AliyunLogCommon.MODULE,AliyunLogCommon.SubModule.UPLOAD,
+                                AliyunLogEvent.EVENT_UPLOAD_FILE_FAILED,AliyunLogCommon.LogStores.UPLOAD,null);
+                    }
+                });
+            }
+        }
+    }
+    private void uploadPartFailedLogger(final String code,final String message){
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            LogService logService = logger.getLogService();
+            if (logService != null) {
+                logService.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        Map<String, String> args = new HashMap<>();
+                        args.put(AliyunLogKey.KEY_UPLOAD_PART_FAILED_CODE, code);
+                        args.put(AliyunLogKey.KEY_UPLOAD_PART_FAILED_MESSAGE, message);
+                        logger.pushLog(args, AliyunLogCommon.Product.VIDEO_UPLOAD,AliyunLogCommon.LogLevel.DEBUG, AliyunLogCommon.MODULE,AliyunLogCommon.SubModule.UPLOAD,
+                                AliyunLogEvent.EVENT_UPLOAD_PART_FAILED,AliyunLogCommon.LogStores.UPLOAD,null);
+                    }
+                });
+            }
+        }
+    }
 
 }
 

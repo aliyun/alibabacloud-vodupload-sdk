@@ -1,10 +1,25 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2015 pengjianbo(pengjianbosoft@gmail.com), Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 package com.aliyun.vod.qupaiokhttp;
 
 import android.text.TextUtils;
+
+//import com.alibaba.fastjson.JSONObject;
+
 
 import com.aliyun.vod.common.utils.StringUtils;
 
@@ -19,8 +34,6 @@ import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 
-//import com.alibaba.fastjson.JSONObject;
-
 public class RequestParams {
 
     protected final Headers.Builder headers = new Headers.Builder();
@@ -32,9 +45,8 @@ public class RequestParams {
     private RequestBody requestBody;
     private boolean applicationJson;
     private boolean urlEncoder;//是否进行URL编码
-    //    private JSONObject jsonParams;
+//    private JSONObject jsonParams;
     protected CacheControl cacheControl;
-
     public RequestParams() {
         this(null);
     }
@@ -48,13 +60,13 @@ public class RequestParams {
         headers.add("charset", "UTF-8");
 
         List<Part> commonParams = OkHttpFinal.getInstance().getCommonParams();
-        if (commonParams != null && commonParams.size() > 0) {
+        if (commonParams != null && commonParams.size() > 0){
             params.addAll(commonParams);
         }
 
         //添加公共header
         Headers commonHeaders = OkHttpFinal.getInstance().getCommonHeaders();
-        if (commonHeaders != null && commonHeaders.size() > 0) {
+        if ( commonHeaders != null && commonHeaders.size() > 0 ) {
             for (int i = 0; i < commonHeaders.size(); i++) {
                 String key = commonHeaders.name(i);
                 String value = commonHeaders.value(i);
@@ -62,7 +74,7 @@ public class RequestParams {
             }
         }
 
-        if (httpCycleContext != null) {
+        if ( httpCycleContext != null ) {
             httpTaskKey = httpCycleContext.getHttpTaskKey();
         }
     }
@@ -78,7 +90,7 @@ public class RequestParams {
      * @param value
      */
     public void addFormDataPart(String key, String value) {
-        if (value == null) {
+        if ( value == null ) {
             value = "";
         }
 
@@ -124,7 +136,7 @@ public class RequestParams {
         }
 
         boolean isJpg = file.getName().lastIndexOf("jpg") > 0 || file.getName().lastIndexOf("JPG") > 0
-                || file.getName().lastIndexOf("jpeg") > 0 || file.getName().lastIndexOf("JPEG") > 0;
+                ||file.getName().lastIndexOf("jpeg") > 0 || file.getName().lastIndexOf("JPEG") > 0;
         if (isJpg) {
             addFormDataPart(key, file, "image/jpeg; charset=UTF-8");
             return;
@@ -143,7 +155,7 @@ public class RequestParams {
         MediaType mediaType = null;
         try {
             mediaType = MediaType.parse(contentType);
-        } catch (Exception e) {
+        } catch (Exception e){
             ILogger.e(e);
         }
 
@@ -160,7 +172,7 @@ public class RequestParams {
 
 
     public void addFormDataPartFiles(String key, List<File> files) {
-        for (File file : files) {
+        for (File file:files){
             if (file == null || !file.exists() || file.length() == 0) {
                 continue;
             }
@@ -169,7 +181,7 @@ public class RequestParams {
     }
 
     public void addFormDataPart(String key, List<File> files, MediaType mediaType) {
-        for (File file : files) {
+        for (File file:files){
             if (file == null || !file.exists() || file.length() == 0) {
                 continue;
             }
@@ -188,7 +200,7 @@ public class RequestParams {
     }
 
     public void addFormDataPart(String key, List<FileWrapper> fileWrappers) {
-        for (FileWrapper fileWrapper : fileWrappers) {
+        for (FileWrapper fileWrapper:fileWrappers){
             addFormDataPart(key, fileWrapper);
         }
     }
@@ -203,7 +215,7 @@ public class RequestParams {
     }
 
     public void addHeader(String key, String value) {
-        if (value == null) {
+        if ( value == null ) {
             value = "";
         }
 
@@ -307,14 +319,14 @@ public class RequestParams {
             boolean hasData = false;
             MultipartBody.Builder builder = new MultipartBody.Builder();
             builder.setType(MultipartBody.FORM);
-            for (Part part : params) {
+            for (Part part:params){
                 String key = part.getKey();
                 String value = part.getValue();
                 builder.addFormDataPart(key, value);
                 hasData = true;
             }
 
-            for (Part part : files) {
+            for (Part part:files){
                 String key = part.getKey();
                 FileWrapper file = part.getFileWrapper();
                 if (file != null) {
@@ -327,7 +339,7 @@ public class RequestParams {
             }
         } else {
             FormBody.Builder builder = new FormBody.Builder();
-            for (Part part : params) {
+            for (Part part:params){
                 String key = part.getKey();
                 String value = part.getValue();
                 builder.add(key, value);
@@ -341,7 +353,7 @@ public class RequestParams {
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder();
-        for (Part part : params) {
+        for (Part part:params){
             String key = part.getKey();
             String value = part.getValue();
             if (result.length() > 0)
@@ -352,7 +364,7 @@ public class RequestParams {
             result.append(value);
         }
 
-        for (Part part : files) {
+        for (Part part:files){
             String key = part.getKey();
             if (result.length() > 0)
                 result.append("&");

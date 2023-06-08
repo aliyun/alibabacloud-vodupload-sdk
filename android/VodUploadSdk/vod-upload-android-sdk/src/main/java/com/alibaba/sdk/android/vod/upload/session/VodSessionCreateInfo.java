@@ -1,15 +1,13 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.session;
 
 import com.alibaba.sdk.android.vod.upload.model.SvideoInfo;
 
 /**
- * Created by Mulberry on 2017/11/15.
+ * 点播上传参数
  */
-
 public class VodSessionCreateInfo {
     private final VodHttpClientConfig vodHttpClientConfig;
 
@@ -107,6 +105,9 @@ public class VodSessionCreateInfo {
         return workFlowId;
     }
 
+    /**
+     * 构造器
+     */
     public static final class Builder {
 
         private String _VideoPath;
@@ -129,46 +130,91 @@ public class VodSessionCreateInfo {
         public Builder() {
         }
 
+        /**
+         * 设置视频路径
+         * @param videoPath
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setVideoPath(String videoPath) {
             this._VideoPath = videoPath;
             return this;
         }
 
+        /**
+         * 设置图片路径
+         * @param imagePath
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setImagePath(String imagePath) {
             this._ImagePath = imagePath;
             return this;
         }
 
+        /**
+         * 设置临时accessKeyId
+         * @param accessKeyId
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setAccessKeyId(String accessKeyId) {
             this._AccessKeyId = accessKeyId;
             return this;
         }
 
+        /**
+         * 设置临时accessKeySecret
+         * @param accessKeySecret
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setAccessKeySecret(String accessKeySecret) {
             this._AccessKeySecret = accessKeySecret;
             return this;
         }
 
+        /**
+         * 设置 securityToken
+         * @param securityToken
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setSecurityToken(String securityToken) {
             this._SecurityToken = securityToken;
             return this;
         }
 
+        /**
+         * 设置requestID，开发者可以传将获取STS返回的requestID设置也可以不设
+         * @param requestID
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setRequestID(String requestID) {
             this._RequestID = requestID;
             return this;
         }
 
+        /**
+         * 设置STStoken过期时间
+         * @param expriedTime
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setExpriedTime(String expriedTime) {
             this._ExpriedTime = expriedTime;
             return this;
         }
 
+        /**
+         * 设置是否转码，如开启转码请AppSever务必监听服务端转码成功的通知
+         * @param isTranscode
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setIsTranscode(Boolean isTranscode) {
             this._IsTranscode = isTranscode;
             return this;
         }
 
+        /**
+         * 设置短视频信息
+         * @param svideoInfo ,见 {@link SvideoInfo}
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setSvideoInfo(SvideoInfo svideoInfo) {
             this._SvideoInfo = svideoInfo;
             return this;
@@ -179,6 +225,11 @@ public class VodSessionCreateInfo {
             return this;
         }
 
+        /**
+         * 设置网络参数
+         * @param httpClientConfig 见{@link VodHttpClientConfig}
+         * @return VodSessionCreateInfo.Builder
+         */
         public VodSessionCreateInfo.Builder setVodHttpClientConfig(VodHttpClientConfig httpClientConfig) {
             this._VodHttpClientConfig = httpClientConfig;
             return this;
@@ -194,12 +245,12 @@ public class VodSessionCreateInfo {
             return this;
         }
 
-        public VodSessionCreateInfo.Builder setAppId(String _appId) {
+        public VodSessionCreateInfo.Builder setAppId(String _appId){
             this._appId = _appId;
             return this;
         }
 
-        public VodSessionCreateInfo.Builder setWorkFlowId(String _workFlowId) {
+        public VodSessionCreateInfo.Builder setWorkFlowId(String _workFlowId){
             this._workFlowId = _workFlowId;
             return this;
         }

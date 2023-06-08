@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -26,8 +26,10 @@ import com.alibaba.sdk.android.vod.upload.exception.VODErrorCode;
 import com.alibaba.sdk.android.vod.upload.internal.OSSPutUploaderImpl;
 import com.alibaba.sdk.android.vod.upload.internal.OSSUploadListener;
 import com.alibaba.sdk.android.vod.upload.internal.OSSUploader;
+import com.alibaba.sdk.android.vod.upload.internal.OSSUploaderImpl;
 import com.alibaba.sdk.android.vod.upload.internal.ResumableUploaderImpl;
 import com.alibaba.sdk.android.vod.upload.internal.ResumeableSession;
+import com.alibaba.sdk.android.vod.upload.model.FilePartInfo;
 import com.alibaba.sdk.android.vod.upload.model.OSSConfig;
 import com.alibaba.sdk.android.vod.upload.model.OSSUploadInfo;
 import com.alibaba.sdk.android.vod.upload.model.UploadFileInfo;
@@ -35,14 +37,23 @@ import com.alibaba.sdk.android.vod.upload.model.UserData;
 import com.alibaba.sdk.android.vod.upload.model.VodInfo;
 import com.alibaba.sdk.android.vod.upload.model.VodUploadResult;
 import com.alibaba.sdk.android.vod.upload.session.VodHttpClientConfig;
+
+import com.aliyun.auth.common.AliyunVodHttpCommon.ImageType;
 import com.aliyun.auth.common.AliyunVodUploadType;
 import com.aliyun.auth.core.AliyunVodErrorCode;
 import com.aliyun.auth.model.CreateImageForm;
 import com.aliyun.auth.model.CreateVideoForm;
 import com.aliyun.vod.common.httpfinal.QupaiHttpFinal;
 import com.aliyun.vod.common.utils.FileUtils;
+import com.aliyun.vod.common.utils.StringUtils;
 import com.aliyun.vod.jasonparse.JSONSupport;
 import com.aliyun.vod.jasonparse.JSONSupportImpl;
+import com.aliyun.vod.log.core.AliyunLogCommon;
+import com.aliyun.vod.log.core.AliyunLogger;
+import com.aliyun.vod.log.core.AliyunLoggerManager;
+import com.aliyun.vod.log.core.LogService;
+import com.aliyun.vod.log.struct.AliyunLogEvent;
+import com.aliyun.vod.log.struct.AliyunLogKey;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -52,13 +63,12 @@ import java.io.FileNotFoundException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
-/**
- * @author Leigang
- * Created by Leigang on 16/7/2.
- */
+
 public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
     private OSSUploader upload;
     private WeakReference<Context> context;
@@ -67,7 +77,6 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
     private OSSConfig ossConfig;
     private VodUploadStateType status;
     private VODUploadCallback callback;
-    private ResumableVODUploadCallback resumableVODcallback;
     private List<UploadFileInfo> fileList;
     private AliyunVodAuth aliyunVodAuth;
     private boolean isTranscode = true;
@@ -89,6 +98,9 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
      */
     private boolean isVODAuthMode = false;
 
+    // 是否上报埋点
+    private boolean reportEnabled = true;
+
     private Handler mMainHandler = new Handler(Looper.getMainLooper());
 
     public VODUploadClientImpl(Context applicationContext) {
@@ -101,6 +113,12 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
         requestIDSession = RequestIDSession.getInstance();
         aliyunVodAuth = new AliyunVodAuth(new AliyunAuthCallback());
         fileList = Collections.synchronizedList(new ArrayList<UploadFileInfo>());
+        AliyunLoggerManager.createLogger(context.get(), VODUploadClientImpl.class.getName());
+    }
+
+    public void setReportEnabled(boolean enabled) {
+        reportEnabled = enabled;
+        AliyunLoggerManager.toggleLogger(reportEnabled);
     }
 
     @Override
@@ -119,7 +137,6 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
 
     /**
      * mian ak upload oss
-     *
      * @param accessKeyId
      * @param accessKeySecret
      * @param callback
@@ -154,8 +171,7 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
     /**
      * OSS 通过STS方式上传
      * VOD 通过STS方式上传
-     *
-     * @param accessKeyId                        //临时accessKeyId
+     * @param accessKeyId //临时accessKeyId
      * @param accessKeySecret//临时accessKeySecret
      * @param secrityToken//临时securityToken
      * @param expireTime//STStoken过期时间
@@ -185,7 +201,7 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
                     "The specified parameter \"callback\" cannot be null");
         }
 
-        OSSLog.logDebug("VODUpload", "init:STS:\n" + "\nAccessKeyId:" + accessKeyId + "\nAccessKeySecret:" + accessKeySecret + "\nSecrityToken:" + secrityToken + "\nexpireTime:" + expireTime);
+        OSSLog.logDebug("VODUpload","init:STS:\n" + "\nAccessKeyId:" + accessKeyId + "\nAccessKeySecret:" + accessKeySecret + "\nSecrityToken:" + secrityToken + "\nexpireTime:" + expireTime);
 
         jsonSupport = new JSONSupportImpl();
 
@@ -193,14 +209,7 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
         ossConfig.setAccessKeySecretToVOD(accessKeySecret);
         ossConfig.setSecrityTokenToVOD(secrityToken);
         ossConfig.setExpireTimeToVOD(expireTime);
-
-
-        if (callback instanceof ResumableVODUploadCallback) {
-            this.resumableVODcallback = (ResumableVODUploadCallback) callback;
-        } else if (callback instanceof VODUploadCallback) {
-            this.callback = callback;
-        }
-
+        this.callback = callback;
         status = VodUploadStateType.INIT;
     }
 
@@ -237,6 +246,17 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
         configuration.setMaxErrorRetry(vodHttpClientConfig.getMaxRetryCount());
         configuration.setConnectionTimeout(vodHttpClientConfig.getConnectionTimeout());
         configuration.setSocketTimeout(vodHttpClientConfig.getSocketTimeout());
+    }
+
+    @Override
+    public void addFile(String localFilePath, VodInfo vodInfo, List<FilePartInfo> partInfoList) {
+        UploadFileInfo info = new UploadFileInfo();
+        info.setMultipart(true);
+        info.setPartInfoList(new ArrayList<FilePartInfo>(partInfoList));
+        info.setFilePath(localFilePath);
+        info.setVodInfo(vodInfo);
+        info.setStatus(UploadStateType.INIT);
+        fileList.add(info);
     }
 
     @Override
@@ -396,10 +416,29 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
         OSSLog.logDebug("[VODUploadClientImpl] - start called status: " + status);
         if (VodUploadStateType.STARTED != this.status && VodUploadStateType.PAUSED != this.status) {
             this.status = VodUploadStateType.STARTED;
+            addFilesLogger();
             if (this.next()) {
             }
         } else {
             OSSLog.logDebug("[VODUploadClientImpl] - status: " + this.status + " cann't be start!");
+        }
+    }
+
+    private void addFilesLogger() {
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            LogService logService = logger.getLogService();
+            if (logService != null) {
+                logService.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        Map<String, String> args = new HashMap<>();
+                        args.put(AliyunLogKey.KEY_QUEUE_LENGHT, String.valueOf(listFiles().size()));
+                        logger.pushLog(args, AliyunLogCommon.Product.VIDEO_UPLOAD, AliyunLogCommon.LogLevel.DEBUG, AliyunLogCommon.Module.UPLOADER, AliyunLogCommon.SubModule.UPLOAD,
+                                AliyunLogEvent.EVENT_UPLOAD_ADD_FILES, AliyunLogCommon.LogStores.UPLOAD, requestIDSession.getRequestID());
+                    }
+                });
+            }
         }
     }
 
@@ -461,7 +500,8 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
         status = VodUploadStateType.STOPED;
 
         if (upload != null && curFileInfo != null) {
-            if (curFileInfo.getStatus() == UploadStateType.UPLOADING) {
+            if (curFileInfo.getStatus() == UploadStateType.UPLOADING ||
+                    (curFileInfo.isMultipart() && curFileInfo.getStatus() == UploadStateType.PAUSED)) {
                 upload.cancel();
             }
         }
@@ -481,7 +521,7 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
 
             String expiration = key.optString("Expiration");
             String expirationUTC = key.optString("ExpireUTCTime");
-            String expirationTime = !TextUtils.isEmpty(expirationUTC) ? expirationUTC : expiration;
+            String expirationTime = !TextUtils.isEmpty(expirationUTC)? expirationUTC : expiration;
 
             OSSLog.logDebug("[VODUploadClientImpl] resumeWithAuth : " + jsonString);
 
@@ -498,7 +538,6 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
 
     /**
      * vod sts upload resumeWithToken
-     *
      * @param accessKeyId
      * @param accessKeySecret
      * @param secrityToken
@@ -578,15 +617,11 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
     @Override
     public void onUploadSucceed() {
         if (callback != null) {
-            callback.onUploadSucceed(curFileInfo);
+            callback.onUploadSucceed(curFileInfo, resultInfo);
         }
 
         if (resumeableSession != null && curFileInfo != null) {
             resumeableSession.deleteResumeableFileInfo(curFileInfo.getFilePath());
-        }
-
-        if (resumableVODcallback != null) {
-            resumableVODcallback.onUploadFinished(curFileInfo, resultInfo);
         }
 
         next();
@@ -603,19 +638,12 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
                 curFileInfo.setStatus(UploadStateType.INIT);
             }
         } else {
-            OSSLog.logDebug("[VODUploadClientImpl] - onUploadFailed Callback");
-
             OSSLog.logDebug("[VODUploadClientImpl] - onUploadFailed Callback " + callback);
-            OSSLog.logDebug("[VODUploadClientImpl] - onUploadFailed Callback vod " + resumableVODcallback);
             if (callback != null) {
-                callback.onUploadFailed(curFileInfo, code, message);
                 status = VodUploadStateType.FAIlURE;
+                callback.onUploadFailed(curFileInfo, code, message);
             }
 
-            if (resumableVODcallback != null) {
-                resumableVODcallback.onUploadFailed(curFileInfo, code, message);
-                status = VodUploadStateType.FAIlURE;
-            }
         }
 
     }
@@ -624,9 +652,6 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
     public void onUploadProgress(Object request, long uploadedSize, long totalSize) {
         if (callback != null) {
             callback.onUploadProgress(curFileInfo, uploadedSize, totalSize);
-        }
-        if (resumableVODcallback != null) {
-            resumableVODcallback.onUploadProgress(curFileInfo, uploadedSize, totalSize);
         }
     }
 
@@ -642,9 +667,6 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
                     callback.onUploadTokenExpired();
                 }
 
-                if (resumableVODcallback != null) {
-                    resumableVODcallback.onUploadTokenExpired();
-                }
             }
         });
     }
@@ -654,20 +676,12 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
         if (callback != null) {
             callback.onUploadRetry(code, message);
         }
-
-        if (resumableVODcallback != null) {
-            resumableVODcallback.onUploadRetry(code, message);
-        }
     }
 
     @Override
     public void onUploadRetryResume() {
         if (callback != null) {
             callback.onUploadRetryResume();
-        }
-
-        if (resumableVODcallback != null) {
-            resumableVODcallback.onUploadRetryResume();
         }
     }
 
@@ -716,36 +730,53 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
             String mimeType = null;
             try {
                 OSSLog.logDebug("[VODUploadClientImpl] filePath : " + curFileInfo.getFilePath());
-                String encodePath = FileUtils.percentEncode(curFileInfo.getFilePath());
-                mimeType = FileUtils.getMimeType(encodePath);
+                if (StringUtils.isUriPath(curFileInfo.getFilePath())) {
+                    mimeType = context.get().getContentResolver().getType(Uri.parse(curFileInfo.getFilePath()));
+                } else {
+                    String encodePath = FileUtils.percentEncode(curFileInfo.getFilePath());
+                    mimeType = FileUtils.getMimeType(encodePath);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
-                if (resumableVODcallback != null) {
-                    resumableVODcallback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
+                if (callback != null) {
+                    status = VodUploadStateType.FAIlURE;
+                    callback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
                             "The file \"" + curFileInfo.getFilePath() + "\" is not exist!");
                 }
                 return true;
             }
             OSSLog.logDebug("[VODUploadClientImpl] file mimeType : " + mimeType);
             if (TextUtils.isEmpty(mimeType)) {
-                if (resumableVODcallback != null) {
-                    resumableVODcallback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
+                if (callback != null) {
+                    status = VodUploadStateType.FAIlURE;
+                    callback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
                             "The file mimeType\"" + curFileInfo.getFilePath() + "\" is not recognized!");
                 }
                 return true;
             }
             status = VodUploadStateType.GETVODAUTH;
             if (mimeType.substring(0, mimeType.lastIndexOf("/")).equals("video") || mimeType.substring(0, mimeType.lastIndexOf("/")).equals("audio")) {
-                curFileInfo.getVodInfo().setFileName(new File(curFileInfo.getFilePath()).getName());
+                if (StringUtils.isUriPath(curFileInfo.getFilePath())) {
+                    if (context.get() != null) {
+                        curFileInfo.getVodInfo().setFileName(
+                            FileUtils.getFileNameByUri(context.get(), Uri.parse(curFileInfo.getFilePath())));
+                    } else {
+                        if (callback != null) {
+                            status = VodUploadStateType.FAIlURE;
+                            callback.onUploadFailed(curFileInfo, VODErrorCode.MISSING_ARGUMENT,
+                                "VODUploadClientImpl context is null!");
+                        }
+                    }
+
+                } else {
+                    curFileInfo.getVodInfo().setFileName(new File(curFileInfo.getFilePath()).getName());
+                }
                 String videoid = resumeableSession.getResumeableFileVideoID(curFileInfo.getFilePath());
                 try {
-                    UserData userData = VideoInfoUtil.getVideoBitrate(curFileInfo.getFilePath());
+                    UserData userData = VideoInfoUtil.getVideoBitrate(context.get(), curFileInfo.getFilePath());
 
                     String customJson = curFileInfo.getVodInfo().getUserData();
                     String videoJson = jsonSupport.writeValue(userData);
-
-                    OSSLog.logDebug("[VODUploadClientImpl] - userdata-custom : " + customJson);
-                    OSSLog.logDebug("[VODUploadClientImpl] - userdata-video : " + videoJson);
 
                     if (!TextUtils.isEmpty(videoJson)) {
                         curFileInfo.getVodInfo().setUserData(videoJson);
@@ -775,21 +806,24 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
-                        OSSLog.logDebug("[VODUploadClientImpl] - userdata : " + c.toString());
                         curFileInfo.getVodInfo().setUserData(c.toString());
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
                     curFileInfo.getVodInfo().setUserData(null);
                 }
+
                 if (!TextUtils.isEmpty(videoid)) {
                     aliyunVodAuth.refreshUploadVideo(ossConfig.getAccessKeyIdToVOD(), ossConfig.getAccessKeySecretToVOD(), ossConfig.getSecrityTokenToVOD(), videoid, resultInfo.getImageUrl(), requestIDSession.getRequestID());
                 } else {
                     aliyunVodAuth.createUploadVideo(ossConfig.getAccessKeyIdToVOD(), ossConfig.getAccessKeySecretToVOD(), ossConfig.getSecrityTokenToVOD(), curFileInfo.getVodInfo(), isTranscode, templateGroupId, storageLocation,
-                            workflowId, appId, requestIDSession.getRequestID());
+                            workflowId,appId,requestIDSession.getRequestID());
                 }
             } else if (mimeType.substring(0, mimeType.lastIndexOf("/")).equals("image")) {
-                aliyunVodAuth.createUploadImage(ossConfig.getAccessKeyIdToVOD(), ossConfig.getAccessKeySecretToVOD(), ossConfig.getSecrityTokenToVOD(), curFileInfo.getVodInfo(), workflowId, appId, requestIDSession.getRequestID());
+                boolean isCover = TextUtils.equals(ImageType.IMAGETYPE_COVER, curFileInfo.getVodInfo().getImageType());
+                aliyunVodAuth.createUploadImage(ossConfig.getAccessKeyIdToVOD(), ossConfig.getAccessKeySecretToVOD(),
+                    ossConfig.getSecrityTokenToVOD(), curFileInfo.getVodInfo(), workflowId, appId,
+                    requestIDSession.getRequestID(), isCover);
             }
 
             return true;
@@ -834,7 +868,6 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
         for (int i = 0; i < fileList.size(); i++) {
             if (fileList.get(i).getFilePath().equals(uploadFileInfo.getFilePath())
                     && fileList.get(i).getStatus() == UploadStateType.INIT) {
-                OSSLog.logDebug("setUploadAuthAndAddress" + uploadFileInfo.getFilePath());
                 fileList.get(i).setStatus(UploadStateType.INIT);
                 curInfo = fileList.get(i);
                 break;
@@ -896,10 +929,10 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
             OSSUploadInfo ossUploadInfo =
                     SharedPreferencesUtil.getUploadInfo(context.get(), ResumeableSession.SHAREDPREFS_OSSUPLOAD, curFileInfo.getFilePath());
 
-            if (ossUploadInfo != null && MD5.checkMD5(ossUploadInfo.getMd5(), new File(curFileInfo.getFilePath()))) {
+            if (ossUploadInfo != null && MD5.checkMD5(context.get(), ossUploadInfo.getMd5(), curFileInfo.getFilePath())) {
                 curFileInfo = resumeableSession.getResumeableFileInfo(curFileInfo, resultInfo.getVideoid());
-            } else {
-                resumeableSession.saveResumeableFileInfo(curFileInfo, resultInfo.getVideoid());
+            }else {
+                resumeableSession.saveResumeableFileInfo(curFileInfo,resultInfo.getVideoid());
             }
 
             ossConfig.setUploadAddress(uploadAddress);
@@ -926,13 +959,16 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
             ossConfig.setVideoId(createVideoForm.getVideoId());
             ossConfig.setUploadAddress(createVideoForm.getUploadAddress());
             setUploadAuthAndAddress(curFileInfo, createVideoForm.getUploadAuth(), createVideoForm.getUploadAddress());
+            VodUploadResult result = new VodUploadResult();
+            result.setVideoid(resultInfo.getVideoid());
+            curFileInfo.result = result;
             startUpload(curFileInfo);
 
         }
 
         @Override
         public void onSTSExpired(AliyunVodUploadType uploadType) {
-            resumableVODcallback.onUploadTokenExpired();
+            callback.onUploadTokenExpired();
         }
 
         @Override
@@ -946,8 +982,8 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
                     return;
                 }
             }
-            resumableVODcallback.onUploadFailed(curFileInfo, code, message);
-
+            status = VodUploadStateType.FAIlURE;
+            callback.onUploadFailed(curFileInfo, code, message);
 
         }
     }
@@ -956,7 +992,21 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
      * 开始上传
      */
     private void startUpload(UploadFileInfo uploadFileInfo) {
-        if (new File(uploadFileInfo.getFilePath()).length() < 100 * 1024) {
+        if (uploadFileInfo.isMultipart()) {
+            upload = null;
+            upload = new OSSUploaderImpl(context.get());
+            upload.init(ossConfig, this);
+
+            upload.setOSSClientConfiguration(configuration);
+            try {
+                upload.start(uploadFileInfo);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                status = VodUploadStateType.FAIlURE;
+                callback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
+                        "The file \"" + curFileInfo.getFilePath() + "\" is not exist!");
+            }
+        } else if (FileUtils.getFileLength(context.get(), uploadFileInfo.getFilePath()) < 100 * 1024) {
             upload = null;
             upload = new OSSPutUploaderImpl(context.get());
             upload.init(ossConfig, this);
@@ -968,12 +1018,8 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
 
-                if (resumableVODcallback != null) {
-                    resumableVODcallback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
-                            "The file \"" + curFileInfo.getFilePath() + "\" is not exist!");
-                }
-
                 if (callback != null) {
+                    status = VodUploadStateType.FAIlURE;
                     callback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
                             "The file \"" + curFileInfo.getFilePath() + "\" is not exist!");
                 }
@@ -990,7 +1036,8 @@ public class VODUploadClientImpl implements OSSUploadListener, VODUploadClient {
                 upload.start(uploadFileInfo);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
-                resumableVODcallback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
+                status = VodUploadStateType.FAIlURE;
+                callback.onUploadFailed(curFileInfo, VODErrorCode.FILE_NOT_EXIST,
                         "The file \"" + curFileInfo.getFilePath() + "\" is not exist!");
             }
         }

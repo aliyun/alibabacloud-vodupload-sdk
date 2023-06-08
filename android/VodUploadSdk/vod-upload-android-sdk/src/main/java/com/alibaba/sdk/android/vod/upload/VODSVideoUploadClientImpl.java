@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload;
 
 import android.content.Context;
@@ -38,6 +37,8 @@ import com.aliyun.auth.model.CreateVideoForm;
 import com.aliyun.vod.common.httpfinal.QupaiHttpFinal;
 import com.aliyun.vod.jasonparse.JSONSupport;
 import com.aliyun.vod.jasonparse.JSONSupportImpl;
+import com.aliyun.vod.log.core.AliyunLogger;
+import com.aliyun.vod.log.core.AliyunLoggerManager;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -53,9 +54,6 @@ import java.util.List;
 import static com.alibaba.sdk.android.vod.upload.VODSVideoUploadClientImpl.AliyunVodUploadStep.VODSVideoStepUploadImage;
 import static com.alibaba.sdk.android.vod.upload.VODSVideoUploadClientImpl.AliyunVodUploadStep.VODSVideoStepUploadVideo;
 
-/**
- * Created by Mulberry on 2017/11/2.
- */
 public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
     private static final String TAG = "VOD_UPLOAD";
     private static final int VOD_GENERATE_VIDEO = 1;
@@ -82,6 +80,9 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
 
     private ClientConfiguration configuration;
 
+    // 是否上报埋点
+    private boolean reportEnabled = true;
+
     public enum AliyunVodUploadStep {
         //初始状态
         VODSVideoStepIdle,
@@ -103,7 +104,6 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
         VODSVideoStepFinish
     }
 
-
     public enum AliyunVodUploadStatus {
         //初始状态
         VODSVideoStatusIdle,
@@ -119,6 +119,7 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
 
 
     public VODSVideoUploadClientImpl(Context context) {
+        reportEnabled = true;
         this.context = new WeakReference<Context>(context);
         QupaiHttpFinal.getInstance().initOkHttpFinal();
         fileList = Collections.synchronizedList(new ArrayList<UploadFileInfo>());
@@ -126,6 +127,12 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
         resumeableSession = new ResumeableSession(context.getApplicationContext());
         requestIDSession = new RequestIDSession();
         sVideoConfig = new SVideoConfig();
+        AliyunLoggerManager.createLogger(context.getApplicationContext(), VODUploadClientImpl.class.getName());
+    }
+
+    public void setReportEnabled(boolean enabled) {
+        reportEnabled = enabled;
+        AliyunLoggerManager.toggleLogger(reportEnabled);
     }
 
     @Override
@@ -194,6 +201,12 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
                 AliyunVodUploadStatus.VODSVideoStatusRelease == status) {
             OSSLog.logDebug("[VODSVideoUploadClientImpl] - status: " + status + " cann't be start upload!");
             return;
+        }
+
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            logger.setRequestID(vodSessionCreateInfo.getRequestID(), false);
+            logger.setProductSVideo(true);
         }
 
         sVideoConfig.setAccessKeyId(vodSessionCreateInfo.getAccessKeyId());
@@ -300,7 +313,8 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
                 sVideoConfig.getSecrityToken() != null && aliyunVodAuth != null) {
             step = AliyunVodUploadStep.VODSVideoStepCreateImage;
             aliyunVodAuth.createUploadImage(sVideoConfig.getAccessKeyId(), sVideoConfig.getAccessKeySecret(), sVideoConfig.getSecrityToken(),
-                    sVideoConfig.getVodInfo(), sVideoConfig.getStorageLocation(), sVideoConfig.getAppId(), sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId());
+                    sVideoConfig.getVodInfo(),sVideoConfig.getStorageLocation(),sVideoConfig.getAppId(), sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId(),
+                true);
             OSSLog.logDebug(TAG, "VODSVideoStepCreateImage");
             OSSLog.logDebug(TAG, "[VODSVideoUploader] - status: " + " VODSVideoStepCreateImage");
         }
@@ -319,7 +333,8 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
         } else {
             if (step == AliyunVodUploadStep.VODSVideoStepCreateImage) {
                 aliyunVodAuth.createUploadImage(sVideoConfig.getAccessKeyId(), sVideoConfig.getAccessKeySecret(), sVideoConfig.getSecrityToken(),
-                        sVideoConfig.getVodInfo(), sVideoConfig.getStorageLocation(), sVideoConfig.getAppId(), sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId());
+                        sVideoConfig.getVodInfo(),sVideoConfig.getStorageLocation(),sVideoConfig.getAppId(),sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId(),
+                    true);
             } else if (step == AliyunVodUploadStep.VODSVideoStepCreateVideoFinish) {
                 aliyunVodAuth.refreshUploadVideo(sVideoConfig.getAccessKeyId(), sVideoConfig.getAccessKeySecret(), sVideoConfig.getSecrityToken(), sVideoConfig.getVideoId(), sVideoConfig.getVodInfo().getCoverUrl(), sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId());
             } else if (step == AliyunVodUploadStep.VODSVideoStepCreateVideo) {
@@ -328,7 +343,7 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
                     aliyunVodAuth.refreshUploadVideo(sVideoConfig.getAccessKeyId(), sVideoConfig.getAccessKeySecret(), sVideoConfig.getSecrityToken(), videoid, sVideoConfig.getVodInfo().getCoverUrl(), requestIDSession.getRequestID());
                 } else {
                     aliyunVodAuth.createUploadVideo(sVideoConfig.getAccessKeyId(), sVideoConfig.getAccessKeySecret(), sVideoConfig.getSecrityToken(), sVideoConfig.getVodInfo(), sVideoConfig.isTranscode(), sVideoConfig.getTemplateGroupId(), sVideoConfig.getStorageLocation(),
-                            sVideoConfig.getWorkFlowId(), sVideoConfig.getAppId(), sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId());
+                            sVideoConfig.getWorkFlowId(),sVideoConfig.getAppId(),sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId());
                 }
             }
         }
@@ -341,7 +356,7 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
         if (type == VOD_GENERATE_VIDEO) {
             vodInfo.setFileName(new File(sVideoConfig.getVideoPath()).getName());
             try {
-                UserData userData = VideoInfoUtil.getVideoBitrate(sVideoConfig.getVideoPath());
+                UserData userData = VideoInfoUtil.getVideoBitrate(context.get(), sVideoConfig.getVideoPath());
 
                 String customJson = sVideoConfig.getUserData();
                 String videoJson = jsonSupport.writeValue(userData);
@@ -485,6 +500,10 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
 
     @Override
     public void setAppVersion(String appVersion) {
+        final AliyunLogger logger = AliyunLoggerManager.getLogger(VODUploadClientImpl.class.getName());
+        if (logger != null) {
+            logger.setAppVersion(appVersion);
+        }
     }
 
     class AliyunAuthCallback implements AliyunVodAuth.VodAuthCallBack {
@@ -613,7 +632,7 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
                     aliyunVodAuth.refreshUploadVideo(sVideoConfig.getAccessKeyId(), sVideoConfig.getAccessKeySecret(), sVideoConfig.getSecrityToken(), videoid, sVideoConfig.getVodInfo().getCoverUrl(), requestIDSession.getRequestID());
                 } else {
                     aliyunVodAuth.createUploadVideo(sVideoConfig.getAccessKeyId(), sVideoConfig.getAccessKeySecret(), sVideoConfig.getSecrityToken(), sVideoConfig.getVodInfo(), sVideoConfig.isTranscode(), sVideoConfig.getTemplateGroupId(), sVideoConfig.getStorageLocation(),
-                            sVideoConfig.getWorkFlowId(), sVideoConfig.getAppId(), sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId());
+                            sVideoConfig.getWorkFlowId(),sVideoConfig.getAppId(),sVideoConfig.getRequestId() == null ? requestIDSession.getRequestID() : sVideoConfig.getRequestId());
                 }
                 step = AliyunVodUploadStep.VODSVideoStepCreateVideo;
             }
@@ -722,10 +741,10 @@ public class VODSVideoUploadClientImpl implements VODSVideoUploadClient {
             OSSUploadInfo ossUploadInfo =
                     SharedPreferencesUtil.getUploadInfo(context.get(), ResumeableSession.SHAREDPREFS_OSSUPLOAD, curInfo.getFilePath());
 
-            if (ossUploadInfo != null && MD5.checkMD5(ossUploadInfo.getMd5(), new File(curInfo.getFilePath()))) {
+            if (ossUploadInfo != null && MD5.checkMD5(context.get(), ossUploadInfo.getMd5(), curInfo.getFilePath())) {
                 curInfo = resumeableSession.getResumeableFileInfo(curInfo, sVideoConfig.getVideoId());
-            } else {
-                resumeableSession.saveResumeableFileInfo(curInfo, sVideoConfig.getVideoId());
+            }else {
+                resumeableSession.saveResumeableFileInfo(curInfo,sVideoConfig.getVideoId());
             }
 
             startUpload(curInfo);

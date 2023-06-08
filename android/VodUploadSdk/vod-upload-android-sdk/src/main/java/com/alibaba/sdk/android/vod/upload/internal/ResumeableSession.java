@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.internal;
 
 import android.content.Context;
@@ -16,9 +15,7 @@ import com.alibaba.sdk.android.vod.upload.model.UploadFileInfo;
 import java.io.File;
 import java.lang.ref.WeakReference;
 
-/**
- * Created by Mulberry on 2018/1/11.
- */
+
 public class ResumeableSession {
 
     public final static String SHAREDPREFS_OSSUPLOAD = "OSS_UPLOAD_CONFIG";
@@ -47,7 +44,7 @@ public class ResumeableSession {
         OSSUploadInfo ossUploadInfo =
                 SharedPreferencesUtil.getUploadInfo(context.get(), SHAREDPREFS_OSSUPLOAD, filePath);
         OSSLog.logDebug("getResumeableFileInfo1" + ossUploadInfo);
-        if (ossUploadInfo != null && MD5.checkMD5(ossUploadInfo.getMd5(), new File(filePath))) {
+        if (ossUploadInfo != null && MD5.checkMD5(context.get(), ossUploadInfo.getMd5(), filePath)) {
             return ossUploadInfo.getVideoID();
         }
         return null;
@@ -65,10 +62,10 @@ public class ResumeableSession {
         ossUploadInfo.setBucket(curFileInfo.getBucket());
         ossUploadInfo.setEndpoint(curFileInfo.getEndpoint());
         ossUploadInfo.setObject(curFileInfo.getObject());
-        ossUploadInfo.setMd5(MD5.calculateMD5(new File(curFileInfo.getFilePath())));
+        ossUploadInfo.setMd5(MD5.calculateMD5(context.get(), curFileInfo.getFilePath()));
         ossUploadInfo.setVideoID(videoId);
         try {
-            OSSLog.logDebug("saveUploadInfo" + ossUploadInfo, toString());
+            OSSLog.logDebug("saveUploadInfo" + ossUploadInfo,toString());
             SharedPreferencesUtil.saveUploadInfp(context.get(), SHAREDPREFS_OSSUPLOAD, curFileInfo.getFilePath(), ossUploadInfo);
         } catch (Exception e) {
             e.printStackTrace();
@@ -107,7 +104,7 @@ public class ResumeableSession {
         }
         //step 4 上传完成需要根据MD5匹配删除值
         OSSUploadInfo ossUploadInfo = SharedPreferencesUtil.getUploadInfo(context.get(), SHAREDPREFS_OSSUPLOAD, filePath);
-        if (ossUploadInfo != null && MD5.checkMD5(ossUploadInfo.getMd5(), new File(filePath))) {
+        if (ossUploadInfo != null && MD5.checkMD5(context.get(), ossUploadInfo.getMd5(), filePath)) {
             return SharedPreferencesUtil.clearUploadInfo(context.get(), SHAREDPREFS_OSSUPLOAD, filePath);
         }
         return false;
@@ -122,7 +119,7 @@ public class ResumeableSession {
         }
         //step 4 上传完成需要根据MD5匹配删除值
         OSSUploadInfo ossUploadInfo = SharedPreferencesUtil.getUploadInfo(context.get(), SHAREDPREFS_OSSUPLOAD, filePath);
-        if (ossUploadInfo != null && MD5.checkMD5(ossUploadInfo.getMd5(), new File(filePath))) {
+        if (ossUploadInfo != null && MD5.checkMD5(context.get(), ossUploadInfo.getMd5(), filePath)) {
             return SharedPreferencesUtil.clearUploadInfo(context.get(), SHAREDPREFS_OSSUPLOAD, filePath);
         }
         return false;

@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.model;
 
 import com.alibaba.sdk.android.oss.common.auth.OSSCredentialProvider;
@@ -9,9 +8,7 @@ import com.alibaba.sdk.android.oss.common.auth.OSSFederationCredentialProvider;
 import com.alibaba.sdk.android.oss.common.auth.OSSFederationToken;
 import com.alibaba.sdk.android.oss.common.auth.OSSPlainTextAKSKCredentialProvider;
 
-/**
- * Created by Leigang on 16/6/25.
- */
+
 public class OSSConfig {
     // for sts, request auth
     private String accessKeyIdToVOD;
@@ -92,8 +89,8 @@ public class OSSConfig {
     }
 
     public OSSCredentialProvider getProvider() {
-        if (null == this.secrityToken || null == this.expireTime) {
-            return new OSSPlainTextAKSKCredentialProvider(accessKeyId, accessKeySecret);
+        if (null == this.secrityToken || null == this.expireTime ) {
+            return new OSSPlainTextAKSKCredentialProvider(accessKeyId==null?"":accessKeyId, accessKeySecret==null?"":accessKeySecret);
         } else {
             return new OSSFederationCredentialProvider() {
                 @Override

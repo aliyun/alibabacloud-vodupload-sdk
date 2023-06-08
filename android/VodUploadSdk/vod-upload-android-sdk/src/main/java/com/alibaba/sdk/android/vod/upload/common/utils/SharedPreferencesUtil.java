@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.common.utils;
 
 import android.content.Context;
@@ -17,9 +16,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-/**
- * Created by Mulberry on 2018/1/10.
- */
+
 
 public class SharedPreferencesUtil {
 
@@ -27,7 +24,7 @@ public class SharedPreferencesUtil {
      * @param uploadInfo
      */
     public static void saveUploadInfp(Context context, String preferenceName, String key, OSSUploadInfo uploadInfo) throws Exception {
-        if (uploadInfo instanceof Serializable) {
+        if(uploadInfo instanceof Serializable) {
             SharedPreferences sharedPreferences = context.getSharedPreferences(preferenceName, context.MODE_PRIVATE);
             SharedPreferences.Editor editor = sharedPreferences.edit();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -40,28 +37,28 @@ public class SharedPreferencesUtil {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        } else {
+        }else {
             throw new Exception("User must implements Serializable");
         }
     }
 
-    public static OSSUploadInfo getUploadInfo(Context context, String preferenceName, String key) {
-        SharedPreferences sharedPreferences = context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE);
+    public static OSSUploadInfo getUploadInfo(Context context, String preferenceName,String key) {
+        SharedPreferences sharedPreferences=context.getSharedPreferences(preferenceName,Context.MODE_PRIVATE);
         String temp = sharedPreferences.getString(key, "");
-        ByteArrayInputStream bais = new ByteArrayInputStream(Base64.decode(temp.getBytes(), Base64.DEFAULT));
+        ByteArrayInputStream bais =  new ByteArrayInputStream(Base64.decode(temp.getBytes(), Base64.DEFAULT));
         OSSUploadInfo ossUploadInfo = null;
         try {
             ObjectInputStream ois = new ObjectInputStream(bais);
             ossUploadInfo = (OSSUploadInfo) ois.readObject();
         } catch (IOException e) {
-        } catch (ClassNotFoundException e1) {
+        }catch(ClassNotFoundException e1) {
 
         }
         return ossUploadInfo;
     }
 
-    public static boolean clearUploadInfo(Context context, String preferenceName, String key) {
-        SharedPreferences sharedPreferences = context.getSharedPreferences(preferenceName, context.MODE_PRIVATE);
+    public static boolean clearUploadInfo(Context context,String preferenceName,String  key){
+        SharedPreferences sharedPreferences=context.getSharedPreferences(preferenceName,context.MODE_PRIVATE);
         return sharedPreferences.edit().remove(key).commit();
     }
 

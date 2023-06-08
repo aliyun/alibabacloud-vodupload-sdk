@@ -1,12 +1,9 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.aliyun.auth.core;
 
-/**
- * Created by Mulberry on 2017/11/2.
- */
+
 public class AliyunVodKey {
 
     public static final String KEY_VOD_ACTION = "Action";
@@ -25,7 +22,7 @@ public class AliyunVodKey {
     public static final String KEY_VOD_STORAGELOCATION = "StorageLocation";
     public static final String KEY_VOD_WORKFLOWLD = "WorkflowId";
     public static final String KEY_VOD_APPID = "AppId";
-    public static final String KEY_VOD_USERDATA = "UserData";
+    public static final String KEY_VOD_USERDATA= "UserData";
 
     public static final String KEY_VOD_DURATION = "Duration";
     public static final String KEY_VOD_BITRATE = "Bitrate";
@@ -34,8 +31,8 @@ public class AliyunVodKey {
     public static final String KEY_VOD_HEIGHT = "Height";
 
     /*
-     * 公共参数
-     */
+    * 公共参数
+    */
     public static final String KEY_VOD_COMMON_FORMAT = "Format";
     public static final String KEY_VOD_COMMON_VERSION = "Version";
     public static final String KEY_VOD_COMMON_ACCESSKEYID = "AccessKeyId";

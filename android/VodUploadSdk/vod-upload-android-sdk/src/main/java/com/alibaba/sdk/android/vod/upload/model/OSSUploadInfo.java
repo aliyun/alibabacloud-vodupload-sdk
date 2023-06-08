@@ -1,16 +1,12 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.model;
 
 import java.io.Serializable;
 
-/**
- * Created by Mulberry on 2018/1/10.
- */
 
-public class OSSUploadInfo implements Serializable {
+public class OSSUploadInfo implements Serializable{
     private String md5;
     private String endpoint;
     private String bucket;

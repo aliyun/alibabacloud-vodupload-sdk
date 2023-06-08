@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.internal;
 
 import com.alibaba.sdk.android.oss.ClientConfiguration;
@@ -10,9 +9,7 @@ import com.alibaba.sdk.android.vod.upload.model.UploadFileInfo;
 
 import java.io.FileNotFoundException;
 
-/**
- * Created by Leigang on 16/6/25.
- */
+
 public interface OSSUploader {
     void init(OSSConfig ossConfig, OSSUploadListener listener);
 

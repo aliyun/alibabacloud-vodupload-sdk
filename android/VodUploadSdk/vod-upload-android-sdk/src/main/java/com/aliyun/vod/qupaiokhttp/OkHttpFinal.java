@@ -1,5 +1,17 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2015 pengjianbo(pengjianbosoft@gmail.com), Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 package com.aliyun.vod.qupaiokhttp;
@@ -36,7 +48,7 @@ public class OkHttpFinal {
                 .connectTimeout(timeout, TimeUnit.MILLISECONDS)
                 .writeTimeout(timeout, TimeUnit.MILLISECONDS)
                 .readTimeout(timeout, TimeUnit.MILLISECONDS);
-        if (configuration.getHostnameVerifier() != null) {
+        if ( configuration.getHostnameVerifier() != null ) {
             builder.hostnameVerifier(configuration.getHostnameVerifier());
         }
 
@@ -51,11 +63,11 @@ public class OkHttpFinal {
             builder.cookieJar(cookieJar);
         }
 
-        if (configuration.getCache() != null) {
+        if(configuration.getCache() != null) {
             builder.cache(configuration.getCache());
         }
 
-        if (configuration.getAuthenticator() != null) {
+        if (configuration.getAuthenticator() != null){
             builder.authenticator(configuration.getAuthenticator());
         }
         if (configuration.getCertificatePinner() != null) {
@@ -63,10 +75,10 @@ public class OkHttpFinal {
         }
         builder.followRedirects(configuration.isFollowRedirects());
         builder.followSslRedirects(configuration.isFollowSslRedirects());
-        if (configuration.getSslSocketFactory() != null && configuration.getX509TrustManager() != null) {
+        if(configuration.getSslSocketFactory() != null && configuration.getX509TrustManager() != null) {
             builder.sslSocketFactory(configuration.getSslSocketFactory(), configuration.getX509TrustManager());
         }
-        if (configuration.getDispatcher() != null) {
+        if(configuration.getDispatcher() != null) {
             builder.dispatcher(configuration.getDispatcher());
         }
         builder.retryOnConnectionFailure(configuration.isRetryOnConnectionFailure());
@@ -77,7 +89,7 @@ public class OkHttpFinal {
             builder.interceptors().addAll(configuration.getInterceptorList());
         }
 
-        if (configuration.getProxy() != null) {
+        if(configuration.getProxy() != null){
             builder.proxy(configuration.getProxy());
         }
         ILogger.DEBUG = configuration.isDebug();
@@ -96,16 +108,15 @@ public class OkHttpFinal {
 
     /**
      * 修改公共请求参数信息
-     *
      * @param key
      * @param value
      */
     public void updateCommonParams(String key, String value) {
         boolean add = false;
         List<Part> commonParams = configuration.getCommonParams();
-        if (commonParams != null) {
-            for (Part param : commonParams) {
-                if (param != null && TextUtils.equals(param.getKey(), key)) {
+        if (commonParams != null){
+            for (Part param:commonParams) {
+                if (param != null && TextUtils.equals(param.getKey(), key)){
                     param.setValue(value);
                     add = true;
                     break;
@@ -119,13 +130,12 @@ public class OkHttpFinal {
 
     /**
      * 修改公共header信息
-     *
      * @param key
      * @param value
      */
     public void updateCommonHeader(String key, String value) {
         Headers headers = configuration.getCommonHeaders();
-        if (headers == null) {
+        if ( headers == null){
             headers = new Headers.Builder().build();
         }
         configuration.commonHeaders = headers.newBuilder().set(key, value).build();

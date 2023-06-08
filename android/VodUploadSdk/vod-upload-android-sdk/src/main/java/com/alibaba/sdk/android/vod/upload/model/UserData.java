@@ -1,12 +1,9 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.model;
 
-/**
- * Created by Mulberry on 2017/11/8.
- */
+
 public class UserData {
     private String Duration;
     private String Bitrate;

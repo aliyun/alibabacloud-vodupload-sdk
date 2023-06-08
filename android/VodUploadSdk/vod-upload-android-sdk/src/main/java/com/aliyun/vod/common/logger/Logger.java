@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2010-2017 Alibaba Group Holding Limited.
  */
 
 package com.aliyun.vod.common.logger;
@@ -20,7 +20,7 @@ public final class Logger {
     }
 
     public static LoggerPrinter getDefaultLogger() {
-        if (loggerPrinter == null) {
+        if ( loggerPrinter == null) {
             loggerPrinter = LoggerFactory.getFactory(DEFAULT_TAG, debug);
         }
         return loggerPrinter;

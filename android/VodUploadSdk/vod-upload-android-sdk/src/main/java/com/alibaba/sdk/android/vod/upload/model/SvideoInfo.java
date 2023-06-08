@@ -1,14 +1,12 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.model;
 
 import java.util.List;
 
 /**
  * 短视频上传点播VideoInfo
- * Created by Mulberry on 2017/11/9.
  */
 public class SvideoInfo {
     private String title;
@@ -27,6 +25,10 @@ public class SvideoInfo {
         return title;
     }
 
+    /**
+     * 设置标题
+     * @param title
+     */
     public void setTitle(String title) {
         this.title = title;
     }
@@ -35,6 +37,10 @@ public class SvideoInfo {
         return desc;
     }
 
+    /**
+     * 设置描述信息
+     * @param desc
+     */
     public void setDesc(String desc) {
         this.desc = desc;
     }
@@ -43,6 +49,10 @@ public class SvideoInfo {
         return tags;
     }
 
+    /**
+     * 设置标签
+     * @param tags
+     */
     public void setTags(List<String> tags) {
         this.tags = tags;
     }
@@ -51,6 +61,10 @@ public class SvideoInfo {
         return cateId;
     }
 
+    /**
+     * 设置分类ID
+     * @param cateId
+     */
     public void setCateId(Integer cateId) {
         this.cateId = cateId;
     }

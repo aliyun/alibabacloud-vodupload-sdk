@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2010-2017 Alibaba Group Holding Limited.
  */
 
 package com.aliyun.vod.qupaiokhttp;
@@ -34,7 +34,7 @@ class OkHttpCallManager {
     }
 
     public Call getCall(String url) {
-        if (!StringUtils.isEmpty(url)) {
+        if ( !StringUtils.isEmpty(url) ) {
             return callMap.get(url);
         }
 
@@ -42,7 +42,7 @@ class OkHttpCallManager {
     }
 
     public void removeCall(String url) {
-        if (!StringUtils.isEmpty(url)) {
+        if ( !StringUtils.isEmpty(url) ) {
             callMap.remove(url);
         }
     }

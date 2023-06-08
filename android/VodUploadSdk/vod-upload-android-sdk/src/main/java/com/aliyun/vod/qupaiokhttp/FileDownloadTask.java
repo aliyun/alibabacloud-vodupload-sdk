@@ -1,10 +1,23 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2015 pengjianbo(pengjianbosoft@gmail.com), Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 package com.aliyun.vod.qupaiokhttp;
 
 import android.os.AsyncTask;
+
 
 import com.aliyun.vod.common.utils.FileUtils;
 
@@ -79,8 +92,8 @@ class FileDownloadTask extends AsyncTask<Void, Long, Boolean> {
 
             int progress = (int) (sum * 100.0f / total);
             //计算下载速度
-            long totalTime = (System.currentTimeMillis() - previousTime) / 1000;
-            if (totalTime == 0) {
+            long totalTime = (System.currentTimeMillis() - previousTime)/1000;
+            if ( totalTime == 0 ) {
                 totalTime += 1;
             }
             long networkSpeed = sum / totalTime;
@@ -92,11 +105,11 @@ class FileDownloadTask extends AsyncTask<Void, Long, Boolean> {
     protected void onPostExecute(Boolean suc) {
         super.onPostExecute(suc);
         if (suc) {
-            if (callback != null) {
+            if ( callback != null ) {
                 callback.onDone();
             }
         } else {
-            if (callback != null) {
+            if ( callback != null ) {
                 callback.onFailure();
             }
         }
@@ -128,15 +141,11 @@ class FileDownloadTask extends AsyncTask<Void, Long, Boolean> {
             return target.getAbsolutePath();
         } finally {
             try {
-                if (is != null) {
-                    is.close();
-                }
+                if (is != null) { is.close(); }
             } catch (IOException e) {
             }
             try {
-                if (fos != null) {
-                    fos.close();
-                }
+                if (fos != null) { fos.close(); }
             } catch (IOException e) {
             }
         }

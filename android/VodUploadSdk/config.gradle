@@ -4,7 +4,4 @@ ext{
     externalMinSdkVersion = 15
     externalTargetSdkVersion = 25
 
-    pushNewVersion = '1.2.0'
-    pushVersion = '1.1.9'
-
 }

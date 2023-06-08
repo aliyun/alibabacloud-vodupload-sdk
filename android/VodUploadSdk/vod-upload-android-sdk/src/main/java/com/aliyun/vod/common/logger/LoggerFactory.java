@@ -1,13 +1,11 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2010-2017 Alibaba Group Holding Limited.
  */
 
 package com.aliyun.vod.common.logger;
 
 /**
  * Desction:日志工厂类
- * Author:pengjianbo
- * Date:2016/1/29 0029 17:30
  */
 public class LoggerFactory {
 

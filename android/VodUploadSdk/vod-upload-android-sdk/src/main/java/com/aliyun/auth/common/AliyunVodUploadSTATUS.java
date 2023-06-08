@@ -1,12 +1,10 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.aliyun.auth.common;
 
 /**
  * 点播视频上传状态
- * Created by Mulberry on 2017/11/6.
  */
 public enum AliyunVodUploadSTATUS {
     VODSVideoStepIdle,//初始状态

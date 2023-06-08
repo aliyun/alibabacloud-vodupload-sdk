@@ -1,13 +1,11 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.session;
 
 /**
- * Created by Mulberry on 2017/11/15.
+ * HttpClient配置项
  */
-
 public class VodHttpClientConfig {
 
     private int maxRetryCount = Integer.MAX_VALUE;
@@ -36,6 +34,9 @@ public class VodHttpClientConfig {
         return socketTimeout;
     }
 
+    /**
+     * 构造器
+     */
     public static class Builder {
         int _MaxRetryCount = Integer.MAX_VALUE;
         int _ConnectionTimeout = 15 * 1000;
@@ -44,8 +45,13 @@ public class VodHttpClientConfig {
         public Builder() {
         }
 
+        /**
+         * 设置最大重试次数，默认是 Integer.MAX_VALUE
+         * @param maxRetryCount
+         * @return
+         */
         public VodHttpClientConfig.Builder setMaxRetryCount(int maxRetryCount) {
-            if (maxRetryCount > 0) {
+            if(maxRetryCount > 0) {
                 this._MaxRetryCount = maxRetryCount;
                 return this;
             } else {
@@ -54,11 +60,21 @@ public class VodHttpClientConfig {
             }
         }
 
+        /**
+         * 设置链接超时时间，默认：15ms
+         * @param _ConnectionTimeout 单位：毫秒
+         * @return
+         */
         public VodHttpClientConfig.Builder setConnectionTimeout(int _ConnectionTimeout) {
             this._ConnectionTimeout = _ConnectionTimeout;
             return this;
         }
 
+        /**
+         * 设置Socket超时时间，默认：15ms
+         * @param _SocketTimeout
+         * @return
+         */
         public VodHttpClientConfig.Builder setSocketTimeout(int _SocketTimeout) {
             this._SocketTimeout = _SocketTimeout;
             return this;

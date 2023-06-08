@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.alibaba.sdk.android.vod.upload.auth;
 
 import android.util.Log;
@@ -18,15 +17,10 @@ import com.aliyun.vod.jasonparse.JSONSupportImpl;
 import com.aliyun.vod.qupaiokhttp.BaseHttpRequestCallback;
 import com.aliyun.vod.qupaiokhttp.HttpRequest;
 import com.aliyun.vod.qupaiokhttp.StringHttpRequestCallback;
-import com.google.gson.JsonSyntaxException;
 
 import okhttp3.Headers;
 import okhttp3.Response;
 
-
-/**
- * Created by Mulberry on 2017/11/2.
- */
 public class AliyunVodAuth {
     private static final String TAG = "AliyunVodAuth";
     private JSONSupport jsonSupportImpl;
@@ -56,12 +50,14 @@ public class AliyunVodAuth {
         }
     }
 
-    public void createUploadImage(final String accessKeyId, final String accessKeySecret, final String securityToken, final VodInfo vodInfo, final String storageLocation, final String appId, final String requestID) {
+    public void createUploadImage(final String accessKeyId, final String accessKeySecret, final String securityToken,
+        final VodInfo vodInfo, final String storageLocation, final String appId, final String requestID,
+        final boolean isCover) {
         mHttpService.execute(new Runnable() {
             @Override
             public void run() {
                 createImageUrl = AliyunVodParam.generateOpenAPIURL(domainRegion, AliyunVodParam.generatePublicParamters(accessKeyId, securityToken, requestID),
-                        AliyunVodParam.generatePrivateParamtersToUploadImage(vodInfo, storageLocation, appId), accessKeySecret);
+                        AliyunVodParam.generatePrivateParamtersToUploadImage(vodInfo,storageLocation,appId, isCover), accessKeySecret);
                 HttpRequest.get(createImageUrl,
                         new StringHttpRequestCallback() {
 
@@ -78,10 +74,8 @@ public class AliyunVodAuth {
                                     }
                                 } catch (Exception e) {
                                     e.printStackTrace();
-                                    if (e instanceof JsonSyntaxException) {
-                                        if (vodAuthCallBack != null) {
-                                            vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "The network is abnormal, please check your network connection.");
-                                        }
+                                    if (vodAuthCallBack != null) {
+                                        vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "The network is abnormal, please check your network connection.");
                                     }
                                 }
 
@@ -95,18 +89,27 @@ public class AliyunVodAuth {
                                     VodErrorResponse vodErrorResponse = null;
                                     try {
                                         vodErrorResponse = jsonSupportImpl.readValue(response, VodErrorResponse.class);
-                                        if (vodErrorResponse.getCode().equals(AliyunVodErrorCode.VODERRORCODE_INVALIDSECURITYTOKEN_EXPIRED)) {
-                                            if (vodAuthCallBack != null) {
-                                                vodAuthCallBack.onSTSExpired(AliyunVodUploadType.IMAGE);
-                                            }
+                                        if (vodErrorResponse != null) {
+                                            if (vodErrorResponse.getCode().equals(AliyunVodErrorCode.VODERRORCODE_INVALIDSECURITYTOKEN_EXPIRED)) {
+                                                if (vodAuthCallBack != null) {
+                                                    vodAuthCallBack.onSTSExpired(AliyunVodUploadType.IMAGE);
+                                                }
 
+                                            } else {
+                                                if (vodAuthCallBack != null) {
+                                                    vodAuthCallBack.onError(vodErrorResponse.getCode(), vodErrorResponse.getMessage());
+                                                }
+                                            }
                                         } else {
                                             if (vodAuthCallBack != null) {
-                                                vodAuthCallBack.onError(vodErrorResponse.getCode(), vodErrorResponse.getMessage());
+                                                vodAuthCallBack.onError("json error", "parse json error = " + response);
                                             }
                                         }
                                     } catch (Exception e1) {
                                         e1.printStackTrace();
+                                        if (vodAuthCallBack != null) {
+                                            vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "onResponse Exception");
+                                        }
                                     }
                                 }
                             }
@@ -114,7 +117,6 @@ public class AliyunVodAuth {
                             @Override
                             public void onFailure(int errorCode, String msg) {
                                 super.onFailure(errorCode, msg);
-                                Log.d(TAG, "code" + errorCode + "msg" + msg + "time:" + System.currentTimeMillis());
                                 if (errorCode == ERROR_RESPONSE_UNKNOWN && vodAuthCallBack != null) {
                                     vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "http error response unknown.");
                                 }
@@ -125,19 +127,19 @@ public class AliyunVodAuth {
     }
 
     public void createUploadVideo(final String accessKeyId, final String accessKeySecret, final String securityToken,
-                                  final VodInfo vodInfo, final boolean transcodeMode, final String templateGroupId, final String storageLocation, final String workFlowId, final String appId, final String requestID) {
+                                  final VodInfo vodInfo, final boolean transcodeMode, final String templateGroupId, final String storageLocation,final String workFlowId,final String appId, final String requestID) {
         mHttpService.execute(new Runnable() {
             @Override
             public void run() {
                 createVideoUrl = AliyunVodParam.generateOpenAPIURL(domainRegion, AliyunVodParam.generatePublicParamters(accessKeyId, securityToken, requestID),
-                        AliyunVodParam.generatePrivateParamtersToUploadVideo(vodInfo, transcodeMode, templateGroupId, storageLocation, workFlowId, appId), accessKeySecret);
+                        AliyunVodParam.generatePrivateParamtersToUploadVideo(vodInfo, transcodeMode, templateGroupId, storageLocation,workFlowId,appId), accessKeySecret);
 
                 HttpRequest.get(createVideoUrl, new StringHttpRequestCallback() {
 
                     @Override
                     protected void onSuccess(Headers headers, String s) {
                         super.onSuccess(headers, s);
-                        Log.d(TAG, "onSuccess --- createUploadVideo");
+
                         CreateVideoForm createVideoForm = null;
                         try {
                             createVideoForm = jsonSupportImpl.readValue(s, CreateVideoForm.class);
@@ -147,10 +149,8 @@ public class AliyunVodAuth {
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
-                            if (e instanceof JsonSyntaxException) {
-                                if (vodAuthCallBack != null) {
-                                    vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "The network is abnormal. Please check your network connection. Your network may need to log in.");
-                                }
+                            if (vodAuthCallBack != null) {
+                                vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "The network is abnormal. Please check your network connection. Your network may need to log in.");
                             }
                         }
                     }
@@ -164,15 +164,25 @@ public class AliyunVodAuth {
                             VodErrorResponse vodErrorResponse = null;
                             try {
                                 vodErrorResponse = jsonSupportImpl.readValue(response, VodErrorResponse.class);
-                                if (vodAuthCallBack != null) {
-                                    if (vodErrorResponse.getCode().equals(AliyunVodErrorCode.VODERRORCODE_INVALIDSECURITYTOKEN_EXPIRED)) {
-                                        vodAuthCallBack.onSTSExpired(AliyunVodUploadType.VIDEO);
-                                    } else {
-                                        vodAuthCallBack.onError(vodErrorResponse.getCode(), vodErrorResponse.getMessage());
+                                if (vodErrorResponse != null) {
+                                    if (vodAuthCallBack != null) {
+                                        if (vodErrorResponse.getCode().equals(AliyunVodErrorCode.VODERRORCODE_INVALIDSECURITYTOKEN_EXPIRED)) {
+                                            vodAuthCallBack.onSTSExpired(AliyunVodUploadType.VIDEO);
+                                        } else {
+                                            vodAuthCallBack.onError(vodErrorResponse.getCode(), vodErrorResponse.getMessage());
+                                        }
+                                    }
+                                } else {
+                                    if (vodAuthCallBack != null) {
+                                        vodAuthCallBack.onError("json error", "parse json error = " + response);
                                     }
                                 }
+
                             } catch (Exception e1) {
                                 e1.printStackTrace();
+                                if (vodAuthCallBack != null) {
+                                    vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "onResponse Exception");
+                                }
                             }
                         }
                     }
@@ -180,9 +190,10 @@ public class AliyunVodAuth {
                     @Override
                     public void onFailure(int errorCode, String msg) {
                         super.onFailure(errorCode, msg);
-                        Log.d(TAG, "code" + errorCode + "msg" + msg);
                         if (errorCode == ERROR_RESPONSE_UNKNOWN) {
                             vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "http error response unknown.");
+                        } else {
+                            vodAuthCallBack.onError("" + errorCode, msg);
                         }
                     }
                 });
@@ -210,10 +221,8 @@ public class AliyunVodAuth {
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
-                            if (e instanceof JsonSyntaxException) {
-                                if (vodAuthCallBack != null) {
-                                    vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "The network is abnormal. Please check your network connection. Your network may need to log in.");
-                                }
+                            if (vodAuthCallBack != null) {
+                                vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "The network is abnormal. Please check your network connection. Your network may need to log in.");
                             }
                         }
                     }
@@ -235,11 +244,14 @@ public class AliyunVodAuth {
                                     if (AliyunVodErrorCode.VODERRORCODE_INVALIDSECURITYTOKEN_EXPIRED.equals(code)) {
                                         vodAuthCallBack.onSTSExpired(AliyunVodUploadType.VIDEO);
                                     } else {
-                                        vodAuthCallBack.onError(code, message);
+                                        vodAuthCallBack.onError(code, message + " response = " + response);
                                     }
                                 }
                             } catch (Exception e1) {
                                 e1.printStackTrace();
+                                if (vodAuthCallBack != null) {
+                                    vodAuthCallBack.onError(AliyunVodErrorCode.VODERRORCODE_HTTP_ABNORMAL, "onResponse Exception");
+                                }
                             }
                         }
                     }
@@ -247,7 +259,9 @@ public class AliyunVodAuth {
                     @Override
                     public void onFailure(int errorCode, String msg) {
                         super.onFailure(errorCode, msg);
-                        Log.d(TAG, "code" + errorCode + "msg" + msg);
+                        if (vodAuthCallBack != null) {
+                            vodAuthCallBack.onError("" + errorCode, msg);
+                        }
                     }
                 });
             }

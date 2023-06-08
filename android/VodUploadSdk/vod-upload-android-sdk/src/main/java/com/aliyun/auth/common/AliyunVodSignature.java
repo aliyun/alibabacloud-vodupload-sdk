@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2020 Alibaba Group Holding Limited
+ * Copyright (C) 2020 Alibaba Group Holding Limited
  */
-
 package com.aliyun.auth.common;
 
 import android.text.TextUtils;
+
+import com.aliyun.vod.common.utils.StringUtils;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -18,9 +19,7 @@ import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-/**
- * Created by Mulberry on 2017/11/2.
- */
+
 public class AliyunVodSignature {
 
     /*对所有参数名称和参数值做URL编码*/
@@ -30,6 +29,9 @@ public class AliyunVodSignature {
             for (String key : publicParams.keySet()) {
                 String value = publicParams.get(key);
                 //将参数和值都urlEncode一下。
+                if (StringUtils.isEmpty(value)) {
+                    continue;
+                }
                 String encodeKey = percentEncode(key);
                 String encodeVal = percentEncode(value);
                 encodeParams.add(encodeKey + "=" + encodeVal);
@@ -38,7 +40,7 @@ public class AliyunVodSignature {
         if (privateParams != null) {
             for (String key : privateParams.keySet()) {
                 String value = privateParams.get(key);
-                if (!TextUtils.isEmpty(value)) {
+                if (!TextUtils.isEmpty(value)){
                     //将参数和值都urlEncode一下。
                     String encodeKey = percentEncode(key);
                     String encodeVal = percentEncode(value);
@@ -87,6 +89,7 @@ public class AliyunVodSignature {
     }
 
 
+
     public static String hmacSHA1Signature(String accessKeySecret, String stringtoSign) {
         try {
             String key = accessKeySecret + "&";
@@ -108,7 +111,6 @@ public class AliyunVodSignature {
 
     /**
      * 通过Base64将
-     *
      * @param bytes
      * @return
      * @throws UnsupportedEncodingException
@@ -119,7 +121,7 @@ public class AliyunVodSignature {
             return null;
         }
 
-        return new String(Base64Coder.encode(bytes, Base64Coder.NO_WRAP));
+        return  new String(Base64Coder.encode(bytes,Base64Coder.NO_WRAP));
     }
 
 }
